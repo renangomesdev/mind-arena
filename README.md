@@ -65,7 +65,7 @@ Na raiz do projeto (`/mind-arena`):
 
 ## 🌍 Variáveis de Ambiente
 
-Renomeie o `.env.example` para `.env` se for realizar Deploy (por exemplo, na Railway ou Heroku).
+Renomeie o `env.template` para `.env` se for realizar Deploy (por exemplo, na Render, Railway ou Heroku).
 - `DATABASE_URL` (padrão: `jdbc:postgresql://localhost:5432/mindarena`)
 - `DATABASE_USERNAME`
 - `DATABASE_PASSWORD`
