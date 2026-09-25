@@ -1,5 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { Play, Plus, Users, Crown, Zap, Sparkles, X } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Play, Plus, Users, Crown, Zap, Sparkles, X, QrCode } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { GLADIATOR_AVATARS, DEFAULT_AVATAR } from '../constants/avatars';
@@ -8,14 +8,24 @@ import logo from '../assets/logo.jpg';
 
 export default function Home() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [gameCode, setGameCode] = useState('');
     const [nickname, setNickname] = useState('');
     const [selectedAvatar, setSelectedAvatar] = useState(DEFAULT_AVATAR);
+    const [fromQrCode, setFromQrCode] = useState(false);
     const [quizzes, setQuizzes] = useState<Quiz[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedQuizToHost, setSelectedQuizToHost] = useState<Quiz | null>(null);
     const [enablePowers, setEnablePowers] = useState(false);
     const [creatingGame, setCreatingGame] = useState(false);
+
+    useEffect(() => {
+        const codeParam = searchParams.get('code');
+        if (codeParam) {
+            setGameCode(codeParam.toUpperCase().trim());
+            setFromQrCode(true);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         api.get('/quizzes').then(res => setQuizzes(res.data)).catch(console.error);
@@ -86,6 +96,12 @@ export default function Home() {
                     <h3 className="text-2xl font-black mb-1 text-gradient-gold">ENTRAR NA ARENA</h3>
                     <p className="text-dark-400 text-sm mb-6">Entre com o código do seu professor</p>
                     <form onSubmit={handleJoin} className="w-full space-y-3">
+                        {fromQrCode && (
+                            <div className="bg-arena-500/15 border border-arena-500/30 text-arena-300 text-xs font-bold py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 animate-bounce-in">
+                                <QrCode className="w-4 h-4 text-arena-400" />
+                                Conectado via QR Code!
+                            </div>
+                        )}
                         <input
                             type="text"
                             placeholder="CÓDIGO DA PARTIDA"

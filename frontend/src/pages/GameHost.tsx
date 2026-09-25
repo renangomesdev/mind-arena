@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Users, Play, Trophy, ArrowRight, ArrowLeft, Timer, MessageSquare, SkipForward, Crown, Medal } from 'lucide-react';
+import { Users, Play, Trophy, ArrowRight, ArrowLeft, Timer, MessageSquare, SkipForward, Crown, Medal, Copy, QrCode } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../services/api';
 import { createStompClient } from '../services/websocket';
 import { soundManager } from '../services/soundManager';
@@ -152,12 +153,49 @@ export default function GameHost() {
         const canEnablePowers = quiz.questions.every(q => q.hint && q.hint.trim().length > 0);
         return (
             <div className="flex flex-col items-center pt-8 animate-fade-in">
-                <div className="card-arena p-10 text-center w-full max-w-lg mb-8 glow-gold animate-scale-in">
-                    <h2 className="text-arena-400 font-bold tracking-[0.2em] text-sm mb-3">CÓDIGO DA ARENA</h2>
-                    <div className="text-6xl md:text-7xl font-black text-gradient-gold tracking-[0.3em] py-4 select-all">
-                        {code}
+                <div className="card-arena p-6 md:p-8 w-full max-w-2xl mb-8 glow-gold animate-scale-in flex flex-col md:flex-row items-center justify-between gap-6">
+                    {/* Left: Code & Info */}
+                    <div className="text-center md:text-left flex-1">
+                        <span className="text-arena-400 font-bold tracking-[0.2em] text-xs uppercase block mb-1">
+                            CÓDIGO DA ARENA
+                        </span>
+                        <div className="text-5xl md:text-6xl font-black text-gradient-gold tracking-[0.25em] py-2 select-all">
+                            {code}
+                        </div>
+                        <p className="text-dark-300 text-sm mt-1 font-medium">
+                            Acesse <span className="text-arena-400 font-bold underline">{window.location.host}</span> e digite o código acima.
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-2 justify-center md:justify-start">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(`${window.location.origin}/?code=${code}`);
+                                    alert("Link da arena copiado para a área de transferência!");
+                                }}
+                                className="text-xs bg-dark-700/80 hover:bg-dark-600 text-dark-300 hover:text-white px-3 py-1.5 rounded-lg border border-dark-500/40 transition-colors flex items-center gap-1.5 font-bold cursor-pointer"
+                            >
+                                <Copy className="w-3.5 h-3.5 text-arena-400" />
+                                Copiar Link da Sala
+                            </button>
+                        </div>
                     </div>
-                    <p className="text-dark-400 mt-3 text-sm">Acesse o site e entre com este código</p>
+
+                    {/* Right: QR Code */}
+                    <div className="flex flex-col items-center bg-dark-900/90 p-4 rounded-2xl border border-arena-600/30 shadow-xl flex-shrink-0">
+                        <div className="p-2.5 bg-white rounded-xl shadow-inner border border-arena-500/20">
+                            <QRCodeSVG
+                                value={`${window.location.origin}/?code=${code}`}
+                                size={135}
+                                bgColor="#ffffff"
+                                fgColor="#0f0e0c"
+                                level="M"
+                            />
+                        </div>
+                        <span className="text-[11px] font-bold text-arena-400 mt-2.5 flex items-center gap-1">
+                            <QrCode className="w-3.5 h-3.5 text-arena-500" />
+                            Aponte a câmera do celular
+                        </span>
+                    </div>
                 </div>
                 
                 <div className="mb-8 w-full max-w-lg bg-dark-900/80 p-4 rounded-2xl border border-orange-500/30 flex items-center justify-between shadow-lg backdrop-blur-md">
