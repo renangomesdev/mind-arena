@@ -116,12 +116,13 @@ public class GameService {
     @Transactional
     public void endQuestion(String code) {
         GameSession session = getGameByCode(code);
+        if (session.getStatus() != GameStatus.QUESTION_ACTIVE) {
+            return;
+        }
         session.setStatus(GameStatus.QUESTION_ENDED);
         gameRepo.save(session);
         
-        Question q = session.getQuiz().getQuestions().get(session.getCurrentQuestionIndex());
         List<Player> leaderboard = playerRepo.findByGameSessionIdOrderByScoreDesc(session.getId());
-        
         broadcastEvent(code, "QUESTION_ENDED", leaderboard);
     }
 
@@ -149,8 +150,10 @@ public class GameService {
             player.incrementStreak();
             
             int maxTime = q.getTimeLimitSeconds() * 1000;
+            if (timeTakenMs < 0) timeTakenMs = 0;
             if (timeTakenMs > maxTime) timeTakenMs = maxTime;
             double percentage = 1.0 - ((double) timeTakenMs / maxTime);
+            if (percentage < 0) percentage = 0;
             int basePoints = 500 + (int)(500 * percentage);
             
             if (player.getStreak() > 1) {
@@ -206,6 +209,7 @@ public class GameService {
     public void useBlindPower(String code, Long attackerId, Long targetId) {
         GameSession session = getGameByCode(code);
         if (!session.isPowersEnabled()) throw new RuntimeException("Powers are disabled.");
+        if (attackerId.equals(targetId)) throw new RuntimeException("Você não pode cegar a si mesmo!");
         
         Player attacker = playerRepo.findById(attackerId).orElseThrow();
         if (attacker.isUsedBlind()) throw new RuntimeException("Already used blind power.");
@@ -229,7 +233,8 @@ public class GameService {
         player.setUsedHint(true);
         playerRepo.save(player);
         
-        return java.util.Map.of("hint", q.getHint());
+        String hint = (q.getHint() != null && !q.getHint().isBlank()) ? q.getHint() : "Sem dica cadastrada.";
+        return java.util.Map.of("hint", hint);
     }
 
     private void broadcastEvent(String code, String type, Object payload) {

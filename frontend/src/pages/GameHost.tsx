@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Users, Play, Trophy, ArrowRight, ArrowLeft, Timer, MessageSquare, SkipForward, Crown, Medal } from 'lucide-react';
 import { api } from '../services/api';
 import { createStompClient } from '../services/websocket';
+import { soundManager } from '../services/soundManager';
 import type { Quiz, Question } from '../types';
 
 interface Player {
@@ -30,13 +31,16 @@ export default function GameHost() {
         handleGameEventRef.current = (event: any) => {
             switch (event.type) {
                 case 'PLAYER_JOINED':
+                    soundManager.playTick(1200);
                     setPlayers(prev => [...prev, event.payload]);
                     break;
                 case 'GAME_STARTED':
+                    soundManager.stopLobbyMusic();
                     setStatus('STARTING');
                     setCountdown(3);
                     break;
                 case 'QUESTION_STARTED':
+                    soundManager.playStartFanfare();
                     setStatus('QUESTION_ACTIVE');
                     setCurrentQuestion(event.payload);
                     setQuestionIndex(prev => prev + 1);
@@ -44,13 +48,16 @@ export default function GameHost() {
                     setAnswersCount(0);
                     break;
                 case 'ANSWER_SUBMITTED':
+                    soundManager.playTick(900);
                     setAnswersCount(prev => prev + 1);
                     break;
                 case 'QUESTION_ENDED':
+                    soundManager.playStartFanfare();
                     setStatus('QUESTION_ENDED');
                     setLeaderboard(event.payload);
                     break;
                 case 'FINISHED':
+                    soundManager.playVictory();
                     setStatus('FINISHED');
                     setLeaderboard(event.payload);
                     break;
@@ -85,13 +92,27 @@ export default function GameHost() {
         return () => { client.deactivate(); };
     }, [code]);
 
+    // Lobby music
+    useEffect(() => {
+        if (status === 'WAITING') {
+            soundManager.startLobbyMusic();
+        } else {
+            soundManager.stopLobbyMusic();
+        }
+        return () => {
+            soundManager.stopLobbyMusic();
+        };
+    }, [status]);
+
     // Countdown 3-2-1
     useEffect(() => {
         if (status === 'STARTING' && countdown > 0) {
+            soundManager.playTick(600 + (3 - countdown) * 200);
             const t = setTimeout(() => setCountdown(countdown - 1), 1000);
             return () => clearTimeout(t);
         }
         if (status === 'STARTING' && countdown === 0) {
+            soundManager.playStartFanfare();
             api.post(`/games/${code}/next`);
         }
     }, [countdown, status]);
@@ -99,6 +120,9 @@ export default function GameHost() {
     // Timer
     useEffect(() => {
         if (status === 'QUESTION_ACTIVE' && timeLeft > 0) {
+            if (timeLeft <= 5) {
+                soundManager.playUrgentTick();
+            }
             const t = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
             return () => clearTimeout(t);
         }

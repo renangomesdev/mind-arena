@@ -71,6 +71,27 @@ export default function CreateQuiz() {
     };
 
     const handleSave = async () => {
+        if (!title.trim()) {
+            alert("Por favor, informe o título do quiz.");
+            return;
+        }
+        for (let i = 0; i < questions.length; i++) {
+            const q = questions[i];
+            if (!q.text.trim()) {
+                alert(`Por favor, preencha o enunciado da pergunta ${i + 1}.`);
+                return;
+            }
+            const hasEmptyOpt = q.options.some(o => !o.text.trim());
+            if (hasEmptyOpt) {
+                alert(`Preencha todas as 4 alternativas da pergunta ${i + 1}.`);
+                return;
+            }
+            const hasCorrect = q.options.some(o => o.isCorrect);
+            if (!hasCorrect) {
+                alert(`Selecione uma alternativa correta para a pergunta ${i + 1}.`);
+                return;
+            }
+        }
         setSaving(true);
         try {
             const quiz: Quiz = { title, description, questions };

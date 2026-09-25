@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { createStompClient } from '../services/websocket';
 import { api } from '../services/api';
 import { CheckCircle2, XCircle, Trophy, Loader2, Swords, Crown } from 'lucide-react';
+import { soundManager } from '../services/soundManager';
 import type { Question } from '../types';
 import logo from '../assets/logo.jpg';
 
@@ -35,6 +36,7 @@ export default function GamePlayer() {
                     break;
                 case 'PLAYER_BLINDED':
                     if (event.payload === player?.id) {
+                        soundManager.playBlind();
                         setIsBlinded(true);
                         setTimeout(() => setIsBlinded(false), 2000);
                     }
@@ -44,6 +46,7 @@ export default function GamePlayer() {
                     setCountdown(3);
                     break;
                 case 'QUESTION_STARTED':
+                    soundManager.playStartFanfare();
                     setStatus('QUESTION_ACTIVE');
                     setCurrentQuestion(event.payload);
                     setAnswered(false);
@@ -55,6 +58,7 @@ export default function GamePlayer() {
                     setStatus('QUESTION_ENDED');
                     const me = event.payload.find((p: any) => p.id === player?.id);
                     if (me && !answered) {
+                        soundManager.playWrong();
                         setFeedback('WRONG');
                         setScoreAwarded(0);
                         setStreakInfo({ streakBonus: 0, currentStreak: 0 });
@@ -62,6 +66,7 @@ export default function GamePlayer() {
                     if (me) setPlayer(me);
                     break;
                 case 'FINISHED':
+                    soundManager.playVictory();
                     setStatus('FINISHED');
                     const meFinal = event.payload.find((p: any) => p.id === player?.id);
                     if (meFinal) setPlayer(meFinal);
@@ -95,6 +100,7 @@ export default function GamePlayer() {
     // Countdown
     useEffect(() => {
         if (status === 'STARTING' && countdown > 0) {
+            soundManager.playTick(600 + (3 - countdown) * 200);
             const t = setTimeout(() => setCountdown(countdown - 1), 1000);
             return () => clearTimeout(t);
         }
@@ -102,6 +108,7 @@ export default function GamePlayer() {
 
     const submitAnswer = async (optionId: number) => {
         if (answered || status !== 'QUESTION_ACTIVE') return;
+        soundManager.playAnswerClick();
         setAnswered(true);
         const timeTakenMs = Date.now() - questionStartTime;
         try {
@@ -114,6 +121,14 @@ export default function GamePlayer() {
             setFeedback(correct ? 'CORRECT' : 'WRONG');
             setScoreAwarded(pointsAwarded);
             setStreakInfo({ streakBonus, currentStreak });
+            if (correct) {
+                soundManager.playCorrect();
+                if (streakBonus > 0 || currentStreak > 1) {
+                    setTimeout(() => soundManager.playStreak(), 350);
+                }
+            } else {
+                soundManager.playWrong();
+            }
         } catch {
             alert("Erro ao enviar resposta.");
             setAnswered(false);
@@ -123,6 +138,7 @@ export default function GamePlayer() {
     const useBlindPower = async (targetId: number) => {
         try {
             await api.post(`/games/${code}/power/blind`, { attackerId: player.id, targetId });
+            soundManager.playBlind();
             setPlayer({ ...player, usedBlind: true });
             setShowBlindModal(false);
         } catch (error: any) {
@@ -133,6 +149,7 @@ export default function GamePlayer() {
     const useHintPower = async () => {
         try {
             const res = await api.post(`/games/${code}/power/hint`, { playerId: player.id });
+            soundManager.playHint();
             setActiveHint(res.data.hint);
             setPlayer({ ...player, usedHint: true });
         } catch (error: any) {

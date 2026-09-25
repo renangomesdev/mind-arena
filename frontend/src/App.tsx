@@ -5,6 +5,7 @@ import GameHost from './pages/GameHost';
 import GamePlayer from './pages/GamePlayer';
 import logo from './assets/logo.jpg';
 import bgImage from './assets/bg-colosseum.jpg';
+import SoundToggle from './components/SoundToggle';
 import './index.css';
 
 function App() {
@@ -16,17 +17,19 @@ function App() {
       </div>
 
       <div className="min-h-screen flex flex-col relative z-0">
-        <header className="p-3 flex justify-center items-center bg-[#1a1816]/60 backdrop-blur-lg sticky top-0 z-50 border-b border-[#33302b]/50">
+        <header className="px-4 py-3 flex justify-between items-center bg-[#1a1816]/60 backdrop-blur-lg sticky top-0 z-50 border-b border-[#33302b]/50 max-w-5xl mx-auto w-full rounded-b-2xl">
+          <div className="w-10 md:w-24"></div>
           <a href="/" className="flex items-center gap-3 group">
             <img
               src={logo}
               alt="Mind Arena Logo"
-              className="h-12 rounded-xl object-contain shadow-lg border border-arena-700/30 group-hover:shadow-arena-500/20 transition-shadow duration-300"
+              className="h-11 rounded-xl object-contain shadow-lg border border-arena-700/30 group-hover:shadow-arena-500/20 transition-shadow duration-300"
             />
             <span className="text-xl font-black tracking-wider text-gradient-gold hidden sm:block">
               MIND ARENA
             </span>
           </a>
+          <SoundToggle />
         </header>
         <main className="flex-1 w-full p-4 max-w-5xl mx-auto">
           <Routes>
