@@ -5,7 +5,6 @@ import { api } from '../services/api';
 import { CheckCircle2, XCircle, Trophy, Loader2, Swords, Crown } from 'lucide-react';
 import { soundManager } from '../services/soundManager';
 import type { Question } from '../types';
-import logo from '../assets/logo.jpg';
 
 export default function GamePlayer() {
     const { code } = useParams();
@@ -161,10 +160,12 @@ export default function GamePlayer() {
     if (status === 'WAITING') {
         return (
             <div className="flex flex-col items-center justify-center pt-16 animate-fade-in">
-                <div className="card-arena p-10 text-center w-full max-w-sm glow-gold">
-                    <img src={logo} alt="" className="w-20 h-20 mx-auto mb-6 rounded-2xl shadow-lg animate-float" />
-                    <h2 className="text-2xl font-bold text-white mb-1">Você está na arena!</h2>
-                    <div className="text-4xl font-black text-gradient-gold py-4">{player?.nickname}</div>
+                <div className="card-arena p-8 text-center w-full max-w-sm glow-gold animate-scale-in">
+                    <div className="w-24 h-24 mx-auto mb-4 bg-arena-500/10 rounded-2xl flex items-center justify-center border border-arena-500/30 text-5xl shadow-lg animate-float">
+                        {player?.avatar || '⚔️'}
+                    </div>
+                    <h2 className="text-xl font-bold text-white mb-1">Você está na arena!</h2>
+                    <div className="text-3xl font-black text-gradient-gold py-2">{player?.nickname}</div>
                     <div className="flex items-center justify-center gap-2 text-dark-400 mt-4">
                         <Loader2 className="w-4 h-4 animate-spin text-arena-500" />
                         <p className="text-sm font-medium">Aguardando o host iniciar...</p>
@@ -284,7 +285,10 @@ export default function GamePlayer() {
                             ) : opponents.map(opp => (
                                 <button key={opp.id} onClick={() => useBlindPower(opp.id)}
                                     className="w-full bg-dark-800 border border-dark-600 hover:border-orange-500 hover:bg-orange-500/20 p-4 rounded-xl font-bold text-left flex justify-between items-center transition-colors shadow-md">
-                                    <span className="text-white text-lg">{opp.nickname}</span>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">{opp.avatar || '⚔️'}</span>
+                                        <span className="text-white text-lg">{opp.nickname}</span>
+                                    </div>
                                     <span className="text-orange-500 text-sm tracking-wider uppercase font-black bg-orange-500/10 px-3 py-1 rounded-lg">Cegar ⚡</span>
                                 </button>
                             ))}

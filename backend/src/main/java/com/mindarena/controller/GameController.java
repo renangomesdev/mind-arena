@@ -33,7 +33,9 @@ public class GameController {
 
     @PostMapping("/{code}/players")
     public Player joinGame(@PathVariable String code, @RequestBody Map<String, String> body) {
-        return gameService.joinGame(code, body.get("nickname"));
+        String nickname = body.get("nickname");
+        String avatar = body.getOrDefault("avatar", "⚔️");
+        return gameService.joinGame(code, nickname, avatar);
     }
 
     @PostMapping("/{code}/start")

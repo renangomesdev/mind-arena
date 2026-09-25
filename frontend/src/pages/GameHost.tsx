@@ -9,6 +9,7 @@ import type { Quiz, Question } from '../types';
 interface Player {
     id: number;
     nickname: string;
+    avatar?: string;
     score: number;
 }
 
@@ -187,17 +188,18 @@ export default function GameHost() {
                     </h3>
                 </div>
 
-                <div className="flex flex-wrap justify-center gap-2 mb-10 w-full max-w-3xl min-h-[80px]">
+                <div className="flex flex-wrap justify-center gap-2.5 mb-10 w-full max-w-3xl min-h-[80px]">
                     {players.map((p, i) => (
                         <div key={p.id}
-                            className="bg-dark-700 border border-arena-700/20 px-5 py-2.5 rounded-full font-bold text-arena-300 shadow-md animate-player-join"
+                            className="bg-dark-700/90 border border-arena-600/30 px-4 py-2 rounded-full font-bold text-arena-200 shadow-md animate-player-join flex items-center gap-2"
                             style={{ animationDelay: `${i * 0.05}s` }}
                         >
-                            {p.nickname}
+                            <span className="text-xl">{p.avatar || '⚔️'}</span>
+                            <span>{p.nickname}</span>
                         </div>
                     ))}
                     {players.length === 0 && (
-                        <div className="text-dark-500 italic mt-6 animate-pulse">Aguardando jogadores entrarem...</div>
+                        <div className="text-dark-500 italic mt-6 animate-pulse">Aguardando gladiadores entrarem...</div>
                     )}
                 </div>
 
@@ -321,11 +323,12 @@ export default function GameHost() {
                                 className="card-arena p-4 flex justify-between items-center animate-rank-slide"
                                 style={{ animationDelay: `${i * 0.1}s` }}
                             >
-                                <div className="flex items-center gap-4">
-                                    <span className="text-2xl w-10 text-center">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-2xl w-8 text-center">
                                         {i < 3 ? medals[i] : <span className="text-dark-400 font-black">{i + 1}º</span>}
                                     </span>
-                                    <span className="text-lg font-bold">{p.nickname}</span>
+                                    <span className="text-2xl">{p.avatar || '⚔️'}</span>
+                                    <span className="text-lg font-bold text-white">{p.nickname}</span>
                                 </div>
                                 <span className="text-2xl font-black text-gradient-gold">{p.score}</span>
                             </div>
@@ -356,7 +359,8 @@ export default function GameHost() {
                     {/* 2nd */}
                     {leaderboard[1] && (
                         <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
-                            <Medal className="w-8 h-8 text-gray-400 mb-2" />
+                            <Medal className="w-8 h-8 text-gray-400 mb-1" />
+                            <span className="text-3xl mb-1">{leaderboard[1].avatar || '⚔️'}</span>
                             <span className="font-bold text-sm md:text-base mb-1 truncate max-w-[90px]">{leaderboard[1].nickname}</span>
                             <span className="text-dark-400 font-bold text-sm mb-2">{leaderboard[1].score}</span>
                             <div className="w-20 md:w-28 h-28 md:h-36 bg-gradient-to-t from-gray-600 to-gray-400 rounded-t-xl flex justify-center items-start pt-4 text-3xl font-black text-gray-800 shadow-xl">2</div>
@@ -365,7 +369,8 @@ export default function GameHost() {
                     {/* 1st */}
                     {leaderboard[0] && (
                         <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-                            <Crown className="w-10 h-10 text-arena-400 mb-2 animate-float" />
+                            <Crown className="w-10 h-10 text-arena-400 mb-1 animate-float" />
+                            <span className="text-4xl mb-1">{leaderboard[0].avatar || '⚔️'}</span>
                             <span className="font-black text-base md:text-lg text-arena-300 mb-1 truncate max-w-[100px]">{leaderboard[0].nickname}</span>
                             <span className="text-arena-200 font-bold text-sm mb-2">{leaderboard[0].score}</span>
                             <div className="w-24 md:w-32 h-40 md:h-52 bg-gradient-to-t from-arena-700 to-arena-400 rounded-t-xl flex justify-center items-start pt-5 text-4xl font-black text-dark-900 shadow-2xl glow-gold">1</div>
@@ -374,7 +379,8 @@ export default function GameHost() {
                     {/* 3rd */}
                     {leaderboard[2] && (
                         <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
-                            <Medal className="w-8 h-8 text-orange-400 mb-2" />
+                            <Medal className="w-8 h-8 text-orange-400 mb-1" />
+                            <span className="text-2xl mb-1">{leaderboard[2].avatar || '⚔️'}</span>
                             <span className="font-bold text-sm md:text-base mb-1 truncate max-w-[90px]">{leaderboard[2].nickname}</span>
                             <span className="text-orange-300 font-bold text-sm mb-2">{leaderboard[2].score}</span>
                             <div className="w-20 md:w-28 h-20 md:h-28 bg-gradient-to-t from-orange-700 to-orange-400 rounded-t-xl flex justify-center items-start pt-4 text-3xl font-black text-orange-900 shadow-xl">3</div>

@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Play, Plus, Users, Crown, Zap, Sparkles, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { GLADIATOR_AVATARS, DEFAULT_AVATAR } from '../constants/avatars';
 import type { Quiz } from '../types';
 import logo from '../assets/logo.jpg';
 
@@ -9,6 +10,7 @@ export default function Home() {
     const navigate = useNavigate();
     const [gameCode, setGameCode] = useState('');
     const [nickname, setNickname] = useState('');
+    const [selectedAvatar, setSelectedAvatar] = useState(DEFAULT_AVATAR);
     const [quizzes, setQuizzes] = useState<Quiz[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedQuizToHost, setSelectedQuizToHost] = useState<Quiz | null>(null);
@@ -24,7 +26,10 @@ export default function Home() {
         if (gameCode.trim() && nickname.trim()) {
             setLoading(true);
             try {
-                const res = await api.post(`/games/${gameCode}/players`, { nickname });
+                const res = await api.post(`/games/${gameCode}/players`, {
+                    nickname: nickname.trim(),
+                    avatar: selectedAvatar || '⚔️'
+                });
                 navigate(`/play/${gameCode}`, { state: { player: res.data } });
             } catch (error: any) {
                 alert(error.response?.data?.message || "Ops! Não foi possível entrar nessa partida.");
@@ -99,6 +104,31 @@ export default function Home() {
                             maxLength={15}
                             required
                         />
+
+                        {/* Seletor de Avatar de Gladiador */}
+                        <div className="pt-1">
+                            <label className="block text-dark-400 text-[11px] font-bold uppercase tracking-wider mb-2 text-center">
+                                Escolha seu Elmo / Símbolo Gladiador
+                            </label>
+                            <div className="grid grid-cols-4 gap-1.5 mb-3">
+                                {GLADIATOR_AVATARS.map(av => (
+                                    <button
+                                        type="button"
+                                        key={av.id}
+                                        onClick={() => setSelectedAvatar(av.icon)}
+                                        className={`py-2 px-1 rounded-xl border flex flex-col items-center justify-center transition-all ${
+                                            selectedAvatar === av.icon
+                                                ? 'bg-arena-500/25 border-arena-500 shadow-lg scale-105 glow-gold text-white'
+                                                : 'bg-dark-900/60 border-dark-600/40 hover:border-arena-700/50 text-dark-400 hover:text-white'
+                                        }`}
+                                    >
+                                        <span className="text-2xl mb-0.5">{av.icon}</span>
+                                        <span className="text-[10px] font-bold truncate max-w-full">{av.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         <button
                             type="submit"
                             disabled={gameCode.length < 3 || nickname.length < 2 || loading}

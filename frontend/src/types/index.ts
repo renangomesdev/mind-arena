@@ -20,3 +20,23 @@ export interface AnswerOption {
     text: string;
     isCorrect: boolean;
 }
+
+export interface Player {
+    id?: number;
+    nickname: string;
+    avatar?: string;
+    score: number;
+    streak?: number;
+    usedBlind?: boolean;
+    usedHint?: boolean;
+}
+
+export interface GameSession {
+    id?: number;
+    code: string;
+    status: string;
+    currentQuestionIndex: number;
+    powersEnabled?: boolean;
+    quiz: Quiz;
+    players: Player[];
+}

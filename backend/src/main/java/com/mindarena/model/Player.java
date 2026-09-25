@@ -10,6 +10,7 @@ public class Player {
     private Long id;
 
     private String nickname;
+    private String avatar = "⚔️";
     private Integer score = 0;
     private Integer streak = 0;
     private boolean usedBlind = false;
@@ -26,6 +27,8 @@ public class Player {
     public void setId(Long id) { this.id = id; }
     public String getNickname() { return nickname; }
     public void setNickname(String nickname) { this.nickname = nickname; }
+    public String getAvatar() { return (avatar != null && !avatar.isBlank()) ? avatar : "⚔️"; }
+    public void setAvatar(String avatar) { this.avatar = (avatar != null && !avatar.isBlank()) ? avatar : "⚔️"; }
     public Integer getScore() { return score; }
     public void setScore(Integer score) { this.score = score; }
     public Integer getStreak() { return streak; }

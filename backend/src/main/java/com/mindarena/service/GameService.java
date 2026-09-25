@@ -68,6 +68,11 @@ public class GameService {
 
     @Transactional
     public Player joinGame(String code, String nickname) {
+        return joinGame(code, nickname, "⚔️");
+    }
+
+    @Transactional
+    public Player joinGame(String code, String nickname, String avatar) {
         GameSession session = getGameByCode(code);
         if (session.getStatus() != GameStatus.WAITING) {
             throw new RuntimeException("Não é possível entrar nesta partida. Estado atual: " + session.getStatus());
@@ -78,6 +83,7 @@ public class GameService {
         
         Player player = new Player();
         player.setNickname(nickname);
+        player.setAvatar(avatar != null && !avatar.isBlank() ? avatar : "⚔️");
         session.addPlayer(player);
         player = playerRepo.save(player);
         
