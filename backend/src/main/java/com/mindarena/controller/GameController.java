@@ -56,6 +56,11 @@ public class GameController {
         return ResponseEntity.ok().build();
     }
 
+    @GetMapping("/{code}/question-stats")
+    public ResponseEntity<?> getQuestionStats(@PathVariable String code) {
+        return ResponseEntity.ok(gameService.getQuestionStats(code));
+    }
+
     @PostMapping("/{code}/answer")
     public ResponseEntity<?> submitAnswer(@PathVariable String code, @RequestBody Map<String, Object> body) {
         Long playerId = Long.valueOf(body.get("playerId").toString());

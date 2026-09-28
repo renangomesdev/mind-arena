@@ -3,7 +3,7 @@ import Home from './pages/Home';
 import CreateQuiz from './pages/CreateQuiz';
 import GameHost from './pages/GameHost';
 import GamePlayer from './pages/GamePlayer';
-import logo from './assets/logo.jpg';
+import logo from './assets/logo.png';
 import bgImage from './assets/bg-colosseum.jpg';
 import SoundToggle from './components/SoundToggle';
 import './index.css';
@@ -23,7 +23,7 @@ function App() {
             <img
               src={logo}
               alt="Mind Arena Logo"
-              className="h-11 rounded-xl object-contain shadow-lg border border-arena-700/30 group-hover:shadow-arena-500/20 transition-shadow duration-300"
+              className="h-11 w-11 rounded-xl object-contain drop-shadow-md group-hover:scale-105 transition-transform duration-300"
             />
             <span className="text-xl font-black tracking-wider text-gradient-gold hidden sm:block">
               MIND ARENA

@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Users, Play, Trophy, ArrowRight, ArrowLeft, Timer, MessageSquare, SkipForward, Crown, Medal, Copy, QrCode } from 'lucide-react';
+import { Users, Play, Trophy, ArrowRight, ArrowLeft, Timer, MessageSquare, SkipForward, Crown, Medal, Copy, QrCode, BarChart3, CheckCircle2, XCircle } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../services/api';
 import { createStompClient } from '../services/websocket';
 import { soundManager } from '../services/soundManager';
+import { getRomanTitle } from '../utils/romanTitles';
 import type { Quiz, Question } from '../types';
 
 interface Player {
@@ -12,6 +13,24 @@ interface Player {
     nickname: string;
     avatar?: string;
     score: number;
+}
+
+interface OptionStat {
+    id: number;
+    text: string;
+    correct: boolean;
+    count: number;
+    percentage: number;
+}
+
+interface QuestionStats {
+    questionId: number;
+    questionText: string;
+    questionIndex: number;
+    totalAnswers: number;
+    totalPlayers: number;
+    correctCount: number;
+    options: OptionStat[];
 }
 
 export default function GameHost() {
@@ -27,6 +46,8 @@ export default function GameHost() {
     const [leaderboard, setLeaderboard] = useState<Player[]>([]);
     const [countdown, setCountdown] = useState(0);
     const [powersEnabled, setPowersEnabled] = useState(false);
+    const [questionStats, setQuestionStats] = useState<QuestionStats | null>(null);
+    const [resultTab, setResultTab] = useState<'STATS' | 'LEADERBOARD'>('STATS');
     const handleGameEventRef = useRef<((event: any) => void) | null>(null);
 
     useEffect(() => {
@@ -48,6 +69,7 @@ export default function GameHost() {
                     setQuestionIndex(prev => prev + 1);
                     setTimeLeft(event.payload.timeLimitSeconds);
                     setAnswersCount(0);
+                    setQuestionStats(null);
                     break;
                 case 'ANSWER_SUBMITTED':
                     soundManager.playTick(900);
@@ -56,12 +78,24 @@ export default function GameHost() {
                 case 'QUESTION_ENDED':
                     soundManager.playStartFanfare();
                     setStatus('QUESTION_ENDED');
-                    setLeaderboard(event.payload);
+                    setResultTab('STATS');
+                    const hostLeaderboard = Array.isArray(event.payload) 
+                        ? event.payload 
+                        : (event.payload?.leaderboard || []);
+                    setLeaderboard(hostLeaderboard);
+                    if (event.payload?.stats) {
+                        setQuestionStats(event.payload.stats);
+                    } else {
+                        api.get(`/games/${code}/question-stats`).then(s => setQuestionStats(s.data)).catch(() => {});
+                    }
                     break;
                 case 'FINISHED':
                     soundManager.playVictory();
                     setStatus('FINISHED');
-                    setLeaderboard(event.payload);
+                    const finalLeaderboard = Array.isArray(event.payload) 
+                        ? event.payload 
+                        : (event.payload?.leaderboard || []);
+                    setLeaderboard(finalLeaderboard);
                     break;
             }
         };
@@ -78,6 +112,9 @@ export default function GameHost() {
             if (game.status === 'QUESTION_ACTIVE' || game.status === 'QUESTION_ENDED') {
                 setCurrentQuestion(game.quiz.questions[game.currentQuestionIndex]);
                 setQuestionIndex(game.currentQuestionIndex);
+                if (game.status === 'QUESTION_ENDED') {
+                    api.get(`/games/${code}/question-stats`).then(s => setQuestionStats(s.data)).catch(() => {});
+                }
             }
         });
         const client = createStompClient();
@@ -344,91 +381,321 @@ export default function GameHost() {
         );
     }
 
-    // ──── RANKING PARCIAL ────
+    // ──── FIM DA PERGUNTA: GRÁFICO KAHOOT & RANKING ────
     if (status === 'QUESTION_ENDED') {
+        const questionToDisplay = currentQuestion || (quiz && questionIndex >= 0 ? quiz.questions[questionIndex] : null);
+        const totalAnswers = questionStats?.totalAnswers || 0;
+        const correctCount = questionStats?.correctCount || 0;
+        const accuracyPct = totalAnswers > 0 ? Math.round((correctCount / totalAnswers) * 100) : 0;
+        
+        const optionsList = questionStats?.options && questionStats.options.length > 0
+            ? questionStats.options
+            : (questionToDisplay?.options || []).map((o: any) => ({
+                id: o.id,
+                text: o.text,
+                correct: o.correct,
+                count: 0,
+                percentage: 0
+            }));
+            
+        const maxVotes = Math.max(...optionsList.map(o => o.count), 1);
+
+        const colors = [
+            { bar: 'bg-gradient-to-t from-red-600 to-red-500 shadow-red-500/20' },
+            { bar: 'bg-gradient-to-t from-blue-600 to-blue-500 shadow-blue-500/20' },
+            { bar: 'bg-gradient-to-t from-amber-600 to-yellow-500 shadow-yellow-500/20' },
+            { bar: 'bg-gradient-to-t from-emerald-600 to-green-500 shadow-green-500/20' }
+        ];
+        const icons = ['🔺', '🔷', '⭐', '🟢'];
+
         return (
-            <div className="flex flex-col items-center pt-8 w-full max-w-2xl mx-auto animate-fade-in">
-                <div className="flex items-center gap-3 mb-8">
-                    <Crown className="w-8 h-8 text-arena-400" />
-                    <h2 className="text-3xl font-black text-gradient-gold">RANKING</h2>
+            <div className="flex flex-col items-center pt-4 w-full max-w-4xl mx-auto animate-fade-in">
+                {/* Cabeçalho da Pergunta */}
+                <div className="text-center mb-6 w-full animate-fade-in-down">
+                    <span className="text-xs font-bold uppercase tracking-widest text-arena-400 bg-arena-500/10 border border-arena-500/20 px-3.5 py-1 rounded-full inline-block mb-3">
+                        Pergunta {questionIndex + 1} de {quiz?.questions?.length || 0} Encerrada
+                    </span>
+                    <h2 className="text-2xl md:text-3xl font-black text-white px-4 leading-tight">
+                        {questionToDisplay?.text || "Pergunta Concluída"}
+                    </h2>
                 </div>
 
-                <div className="w-full space-y-2 mb-10">
-                    {leaderboard.slice(0, 5).map((p, i) => {
-                        const medals = ['🥇', '🥈', '🥉'];
-                        return (
-                            <div key={p.id}
-                                className="card-arena p-4 flex justify-between items-center animate-rank-slide"
-                                style={{ animationDelay: `${i * 0.1}s` }}
+                {/* Seletor de Abas: Gráfico vs Ranking */}
+                <div className="flex items-center gap-2 p-1.5 bg-dark-900/80 border border-dark-600/40 rounded-2xl mb-8 shadow-lg">
+                    <button
+                        type="button"
+                        onClick={() => setResultTab('STATS')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-sm transition-all cursor-pointer ${
+                            resultTab === 'STATS'
+                                ? 'bg-arena-500 text-dark-900 shadow-md scale-102 glow-gold'
+                                : 'text-dark-400 hover:text-white hover:bg-dark-700/50'
+                        }`}
+                    >
+                        <BarChart3 className="w-4 h-4" />
+                        Gráfico de Respostas ({totalAnswers})
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setResultTab('LEADERBOARD')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-sm transition-all cursor-pointer ${
+                            resultTab === 'LEADERBOARD'
+                                ? 'bg-arena-500 text-dark-900 shadow-md scale-102 glow-gold'
+                                : 'text-dark-400 hover:text-white hover:bg-dark-700/50'
+                        }`}
+                    >
+                        <Crown className="w-4 h-4" />
+                        Classificação Geral ({leaderboard.length})
+                    </button>
+                </div>
+
+                {/* ──── TAB 1: GRÁFICO DE BARRAS ESTILO KAHOOT ──── */}
+                {resultTab === 'STATS' && (
+                    <div className="w-full flex flex-col items-center animate-fade-in">
+                        {/* 4 Colunas com Barras de Resposta */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mb-8 items-end min-h-[310px]">
+                            {optionsList.map((opt, i) => {
+                                const heightPercent = totalAnswers > 0 
+                                    ? Math.max(18, Math.round((opt.count / maxVotes) * 100))
+                                    : 18;
+                                const isCorrect = opt.correct;
+                                const colorTheme = colors[i % 4];
+
+                                return (
+                                    <div
+                                        key={opt.id || i}
+                                        className={`flex flex-col items-center justify-end h-full p-4 rounded-2xl border transition-all ${
+                                            isCorrect
+                                                ? 'bg-dark-900/90 border-green-500 shadow-[0_0_25px_rgba(34,197,94,0.25)] glow-green'
+                                                : 'bg-dark-900/60 border-dark-600/30'
+                                        }`}
+                                    >
+                                        {/* Selo: Correta ou Incorreta */}
+                                        <div className="mb-3 h-6 flex items-center">
+                                            {isCorrect ? (
+                                                <span className="bg-green-500/20 text-green-300 border border-green-500/40 text-[11px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm animate-bounce-in">
+                                                    <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                                                    CORRETA
+                                                </span>
+                                            ) : (
+                                                <span className="text-dark-500 text-[11px] font-bold flex items-center gap-1">
+                                                    <XCircle className="w-3.5 h-3.5 text-dark-500" />
+                                                    Incorreta
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Barra Animada com Quantidade */}
+                                        <div className="w-full h-44 flex items-end justify-center mb-3">
+                                            <div
+                                                className={`w-full max-w-[80px] rounded-xl ${colorTheme.bar} flex flex-col items-center justify-between py-2 shadow-xl transition-all duration-1000 ease-out`}
+                                                style={{ height: `${heightPercent}%` }}
+                                            >
+                                                <span className="text-2xl font-black text-white drop-shadow-md">
+                                                    {opt.count}
+                                                </span>
+                                                <span className="text-[10px] font-black text-white/90 uppercase tracking-wider">
+                                                    {opt.percentage}%
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Símbolo e Texto da Opção */}
+                                        <div className="w-full text-center pt-3 border-t border-dark-700/50">
+                                            <div className="text-2xl mb-1">{icons[i]}</div>
+                                            <p className={`text-xs md:text-sm font-bold line-clamp-2 ${isCorrect ? 'text-green-300 font-black' : 'text-dark-300'}`}>
+                                                {opt.text}
+                                            </p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Estatística de Resumo */}
+                        <div className="bg-dark-900/80 border border-arena-600/30 px-6 py-3 rounded-2xl flex flex-wrap items-center justify-center gap-4 mb-8 shadow-md">
+                            <span className="text-sm text-dark-300 font-medium text-center">
+                                <strong className="text-arena-400 font-black text-base">{correctCount}</strong> de <strong className="text-white font-bold">{totalAnswers}</strong> gladiadores acertaram
+                            </span>
+                            <span className="bg-arena-500/15 text-arena-400 font-black text-xs px-3 py-1 rounded-lg border border-arena-500/25">
+                                {accuracyPct}% de acerto
+                            </span>
+                        </div>
+
+                        {/* Botões de Ação */}
+                        <div className="flex flex-wrap gap-4 justify-center">
+                            <button
+                                type="button"
+                                onClick={() => setResultTab('LEADERBOARD')}
+                                className="btn-secondary flex items-center gap-2 text-base px-6 py-3 font-bold"
                             >
-                                <div className="flex items-center gap-3">
-                                    <span className="text-2xl w-8 text-center">
-                                        {i < 3 ? medals[i] : <span className="text-dark-400 font-black">{i + 1}º</span>}
-                                    </span>
-                                    <span className="text-2xl">{p.avatar || '⚔️'}</span>
-                                    <span className="text-lg font-bold text-white">{p.nickname}</span>
-                                </div>
-                                <span className="text-2xl font-black text-gradient-gold">{p.score}</span>
-                            </div>
-                        );
-                    })}
-                </div>
+                                <Crown className="w-5 h-5 text-arena-400" /> VER RANKING
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => api.post(`/games/${code}/next`)}
+                                className="btn-primary flex items-center gap-3 text-base px-8 py-3"
+                            >
+                                PRÓXIMA PERGUNTA <ArrowRight className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+                )}
 
-                <button
-                    onClick={() => api.post(`/games/${code}/next`)}
-                    className="btn-primary flex items-center gap-3 text-lg px-10"
-                >
-                    PRÓXIMA PERGUNTA <ArrowRight className="w-6 h-6" />
-                </button>
+                {/* ──── TAB 2: RANKING DOS GLADIADORES ──── */}
+                {resultTab === 'LEADERBOARD' && (
+                    <div className="w-full max-w-2xl flex flex-col items-center animate-fade-in">
+                        <div className="w-full space-y-2 mb-8">
+                            {leaderboard.slice(0, 5).map((p, i) => {
+                                const medals = ['🥇', '🥈', '🥉'];
+                                return (
+                                    <div key={p.id}
+                                        className="card-arena p-4 flex justify-between items-center animate-rank-slide"
+                                        style={{ animationDelay: `${i * 0.1}s` }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-2xl w-8 text-center">
+                                                {i < 3 ? medals[i] : <span className="text-dark-400 font-black">{i + 1}º</span>}
+                                            </span>
+                                            <span className="text-2xl">{p.avatar || '⚔️'}</span>
+                                            <span className="text-lg font-bold text-white">{p.nickname}</span>
+                                        </div>
+                                        <span className="text-2xl font-black text-gradient-gold">{p.score}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="flex flex-wrap gap-4 justify-center">
+                            <button
+                                type="button"
+                                onClick={() => setResultTab('STATS')}
+                                className="btn-secondary flex items-center gap-2 text-base px-6 py-3 font-bold"
+                            >
+                                <BarChart3 className="w-5 h-5 text-arena-400" /> VER GRÁFICO
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => api.post(`/games/${code}/next`)}
+                                className="btn-primary flex items-center gap-3 text-base px-8 py-3"
+                            >
+                                PRÓXIMA PERGUNTA <ArrowRight className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }
 
-    // ──── PÓDIO FINAL ────
+    // ──── PÓDIO FINAL COM TÍTULOS ROMANOS ────
     if (status === 'FINISHED') {
-        return (
-            <div className="flex flex-col items-center pt-8 animate-fade-in">
-                <Trophy className="w-20 h-20 text-arena-400 mb-4 animate-bounce-in" />
-                <h2 className="text-4xl md:text-5xl font-black text-gradient-gold mb-2 animate-fade-in-up">ARENA ENCERRADA</h2>
-                <p className="text-dark-400 mb-10 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>Parabéns a todos os gladiadores!</p>
+        const title1 = getRomanTitle(1);
+        const title2 = getRomanTitle(2);
+        const title3 = getRomanTitle(3);
 
-                {/* Podium */}
-                <div className="flex items-end justify-center gap-3 md:gap-6 mb-12 h-72 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-                    {/* 2nd */}
+        return (
+            <div className="flex flex-col items-center pt-6 pb-12 w-full max-w-4xl mx-auto animate-fade-in">
+                <Trophy className="w-16 h-16 text-arena-400 mb-3 animate-bounce-in drop-shadow-[0_0_25px_rgba(245,197,24,0.4)]" />
+                <span className="text-xs font-bold uppercase tracking-[0.3em] text-arena-400 mb-1">Honra e Glória Eterna</span>
+                <h2 className="text-4xl md:text-5xl font-black text-gradient-gold mb-2 animate-fade-in-up">ARENA ENCERRADA</h2>
+                <p className="text-dark-400 mb-10 animate-fade-in-up text-sm md:text-base">Os deuses de Roma consagraram os maiores gladiadores!</p>
+
+                {/* Podium Container - Balanced height to prevent any overlap */}
+                <div className="flex items-end justify-center gap-4 md:gap-8 mb-12 min-h-[440px] pt-10 animate-fade-in-up w-full px-2">
+                    {/* 2nd Place */}
                     {leaderboard[1] && (
-                        <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
-                            <Medal className="w-8 h-8 text-gray-400 mb-1" />
+                        <div className="flex flex-col items-center animate-fade-in-up flex-1 max-w-[170px]" style={{ animationDelay: '0.4s' }}>
+                            <Medal className="w-6 h-6 text-gray-300 mb-1 drop-shadow" />
                             <span className="text-3xl mb-1">{leaderboard[1].avatar || '⚔️'}</span>
-                            <span className="font-bold text-sm md:text-base mb-1 truncate max-w-[90px]">{leaderboard[1].nickname}</span>
-                            <span className="text-dark-400 font-bold text-sm mb-2">{leaderboard[1].score}</span>
-                            <div className="w-20 md:w-28 h-28 md:h-36 bg-gradient-to-t from-gray-600 to-gray-400 rounded-t-xl flex justify-center items-start pt-4 text-3xl font-black text-gray-800 shadow-xl">2</div>
+                            <span className="font-bold text-sm md:text-base mb-1 truncate max-w-full text-white">{leaderboard[1].nickname}</span>
+                            
+                            {/* Roman Title Badge */}
+                            <div className={`px-2 py-0.5 rounded-full border text-[10px] md:text-xs font-black tracking-wider uppercase mb-1 flex items-center gap-1 ${title2.badgeClass}`}>
+                                <span>{title2.icon}</span> {title2.title}
+                            </div>
+                            <span className="text-[10px] italic text-gray-400 mb-2 font-serif">{title2.subtitle}</span>
+
+                            <span className="text-dark-300 font-black text-sm mb-2">{leaderboard[1].score} pts</span>
+                            <div className="w-full h-[140px] md:h-[165px] bg-gradient-to-t from-gray-700 via-gray-500 to-gray-400 rounded-t-2xl flex flex-col justify-start items-center pt-4 text-3xl font-black text-gray-900 shadow-xl border-t-2 border-gray-300/40">
+                                <span>2º</span>
+                            </div>
                         </div>
                     )}
-                    {/* 1st */}
+
+                    {/* 1st Place - Champion (Tallest!) */}
                     {leaderboard[0] && (
-                        <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-                            <Crown className="w-10 h-10 text-arena-400 mb-1 animate-float" />
+                        <div className="flex flex-col items-center animate-fade-in-up flex-1 max-w-[200px]" style={{ animationDelay: '0.2s' }}>
+                            <Crown className="w-8 h-8 text-arena-400 mb-1 animate-float drop-shadow-[0_0_15px_rgba(245,197,24,0.6)]" />
                             <span className="text-4xl mb-1">{leaderboard[0].avatar || '⚔️'}</span>
-                            <span className="font-black text-base md:text-lg text-arena-300 mb-1 truncate max-w-[100px]">{leaderboard[0].nickname}</span>
-                            <span className="text-arena-200 font-bold text-sm mb-2">{leaderboard[0].score}</span>
-                            <div className="w-24 md:w-32 h-40 md:h-52 bg-gradient-to-t from-arena-700 to-arena-400 rounded-t-xl flex justify-center items-start pt-5 text-4xl font-black text-dark-900 shadow-2xl glow-gold">1</div>
+                            <span className="font-black text-base md:text-xl text-arena-300 mb-1 truncate max-w-full drop-shadow">{leaderboard[0].nickname}</span>
+                            
+                            {/* Roman Title Badge */}
+                            <div className={`px-3 py-1 rounded-full border text-xs md:text-sm font-black tracking-wider uppercase mb-1 flex items-center gap-1.5 ${title1.badgeClass}`}>
+                                <span>{title1.icon}</span> {title1.title}
+                            </div>
+                            <span className="text-xs italic text-arena-400/80 mb-2 font-serif">{title1.subtitle}</span>
+
+                            <span className="text-arena-200 font-black text-base mb-2">{leaderboard[0].score} pts</span>
+                            <div className="w-full h-[210px] md:h-[250px] bg-gradient-to-t from-amber-700 via-arena-500 to-yellow-400 rounded-t-2xl flex flex-col justify-start items-center pt-5 text-4xl font-black text-dark-900 shadow-2xl glow-gold border-t-2 border-yellow-200/60">
+                                <span>1º</span>
+                            </div>
                         </div>
                     )}
-                    {/* 3rd */}
+
+                    {/* 3rd Place */}
                     {leaderboard[2] && (
-                        <div className="flex flex-col items-center animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
-                            <Medal className="w-8 h-8 text-orange-400 mb-1" />
-                            <span className="text-2xl mb-1">{leaderboard[2].avatar || '⚔️'}</span>
-                            <span className="font-bold text-sm md:text-base mb-1 truncate max-w-[90px]">{leaderboard[2].nickname}</span>
-                            <span className="text-orange-300 font-bold text-sm mb-2">{leaderboard[2].score}</span>
-                            <div className="w-20 md:w-28 h-20 md:h-28 bg-gradient-to-t from-orange-700 to-orange-400 rounded-t-xl flex justify-center items-start pt-4 text-3xl font-black text-orange-900 shadow-xl">3</div>
+                        <div className="flex flex-col items-center animate-fade-in-up flex-1 max-w-[170px]" style={{ animationDelay: '0.6s' }}>
+                            <Medal className="w-6 h-6 text-amber-500 mb-1 drop-shadow" />
+                            <span className="text-3xl mb-1">{leaderboard[2].avatar || '⚔️'}</span>
+                            <span className="font-bold text-sm md:text-base mb-1 truncate max-w-full text-white">{leaderboard[2].nickname}</span>
+                            
+                            {/* Roman Title Badge */}
+                            <div className={`px-2 py-0.5 rounded-full border text-[10px] md:text-xs font-black tracking-wider uppercase mb-1 flex items-center gap-1 ${title3.badgeClass}`}>
+                                <span>{title3.icon}</span> {title3.title}
+                            </div>
+                            <span className="text-[10px] italic text-amber-500/80 mb-2 font-serif">{title3.subtitle}</span>
+
+                            <span className="text-orange-300 font-black text-sm mb-2">{leaderboard[2].score} pts</span>
+                            <div className="w-full h-[85px] md:h-[105px] bg-gradient-to-t from-orange-800 via-amber-700 to-amber-600 rounded-t-2xl flex flex-col justify-start items-center pt-3 text-3xl font-black text-orange-950 shadow-xl border-t-2 border-amber-400/40">
+                                <span>3º</span>
+                            </div>
                         </div>
                     )}
                 </div>
 
+                {/* Demais Gladiadores (4º em diante) */}
+                {leaderboard.length > 3 && (
+                    <div className="w-full max-w-xl card-arena p-4 mb-8 animate-fade-in-up" style={{ animationDelay: '0.8s' }}>
+                        <span className="text-[11px] font-bold text-dark-400 uppercase tracking-wider block mb-3 text-center">
+                            Demais Combatentes da Arena
+                        </span>
+                        <div className="space-y-2">
+                            {leaderboard.slice(3).map((p, idx) => {
+                                const rank = idx + 4;
+                                const title = getRomanTitle(rank);
+                                return (
+                                    <div key={p.id} className="flex justify-between items-center p-2.5 bg-dark-900/60 rounded-xl border border-dark-700/50">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-sm font-black text-dark-400 w-6 text-center">{rank}º</span>
+                                            <span className="text-xl">{p.avatar || '⚔️'}</span>
+                                            <div>
+                                                <span className="font-bold text-white text-sm block">{p.nickname}</span>
+                                                <span className="text-[10px] text-dark-400 flex items-center gap-1">
+                                                    {title.icon} {title.title}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <span className="font-bold text-arena-400 text-sm">{p.score} pts</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
                 <button
                     onClick={() => navigate('/')}
-                    className="btn-secondary flex items-center gap-2 animate-fade-in-up" style={{ animationDelay: '0.7s' }}
+                    className="btn-secondary flex items-center gap-2 animate-fade-in-up cursor-pointer" style={{ animationDelay: '0.9s' }}
                 >
                     <ArrowLeft className="w-5 h-5" /> VOLTAR AO INÍCIO
                 </button>

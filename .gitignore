@@ -8,6 +8,8 @@
 !*.env.example
 !env.template
 !*.template
+!templates/
+!templates/**
 *.pem
 *.key
 *.p12

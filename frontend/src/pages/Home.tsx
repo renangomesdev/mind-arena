@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { GLADIATOR_AVATARS, DEFAULT_AVATAR } from '../constants/avatars';
 import type { Quiz } from '../types';
-import logo from '../assets/logo.jpg';
+import logo from '../assets/logo.png';
 
 export default function Home() {
     const navigate = useNavigate();
@@ -77,7 +77,7 @@ export default function Home() {
 
             {/* Hero Section */}
             <div className="text-center mb-10 animate-fade-in-up">
-                <img src={logo} alt="Mind Arena" className="max-w-xs md:max-w-sm mx-auto mb-6 rounded-2xl shadow-2xl glow-gold animate-float" />
+                <img src={logo} alt="Mind Arena" className="w-48 h-48 md:w-56 md:h-56 mx-auto mb-6 drop-shadow-[0_15px_35px_rgba(234,179,8,0.35)] animate-float object-contain" />
                 <p className="text-dark-400 text-lg font-medium flex items-center justify-center gap-2">
                     <Zap className="w-5 h-5 text-arena-500" />
                     Desafie sua mente. Domine a arena.

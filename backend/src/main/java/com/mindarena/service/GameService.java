@@ -119,6 +119,50 @@ public class GameService {
         broadcastEvent(code, "QUESTION_STARTED", q);
     }
 
+    public java.util.Map<String, Object> getQuestionStats(String code) {
+        GameSession session = getGameByCode(code);
+        if (session.getCurrentQuestionIndex() < 0 || session.getCurrentQuestionIndex() >= session.getQuiz().getQuestions().size()) {
+            return java.util.Map.of();
+        }
+        Question q = session.getQuiz().getQuestions().get(session.getCurrentQuestionIndex());
+        List<PlayerAnswer> answers = answerRepo.findByQuestionIdAndPlayerGameSessionId(q.getId(), session.getId());
+        
+        int totalAnswers = answers.size();
+        int totalPlayers = session.getPlayers() != null ? session.getPlayers().size() : 0;
+        
+        List<java.util.Map<String, Object>> optionsStats = new java.util.ArrayList<>();
+        int correctCount = 0;
+        
+        for (int i = 0; i < q.getOptions().size(); i++) {
+            AnswerOption opt = q.getOptions().get(i);
+            long count = answers.stream()
+                .filter(a -> a.getAnswerOption() != null && a.getAnswerOption().getId().equals(opt.getId()))
+                .count();
+            if (opt.isCorrect()) {
+                correctCount += (int) count;
+            }
+            int percentage = totalAnswers > 0 ? (int) Math.round((double) count / totalAnswers * 100) : 0;
+            
+            optionsStats.add(java.util.Map.of(
+                "id", opt.getId(),
+                "text", opt.getText(),
+                "correct", opt.isCorrect(),
+                "count", (int) count,
+                "percentage", percentage
+            ));
+        }
+        
+        return java.util.Map.of(
+            "questionId", q.getId(),
+            "questionText", q.getText(),
+            "questionIndex", session.getCurrentQuestionIndex(),
+            "totalAnswers", totalAnswers,
+            "totalPlayers", totalPlayers,
+            "correctCount", correctCount,
+            "options", optionsStats
+        );
+    }
+
     @Transactional
     public void endQuestion(String code) {
         GameSession session = getGameByCode(code);
@@ -129,7 +173,13 @@ public class GameService {
         gameRepo.save(session);
         
         List<Player> leaderboard = playerRepo.findByGameSessionIdOrderByScoreDesc(session.getId());
-        broadcastEvent(code, "QUESTION_ENDED", leaderboard);
+        java.util.Map<String, Object> stats = getQuestionStats(code);
+        
+        java.util.Map<String, Object> payload = java.util.Map.of(
+            "leaderboard", leaderboard,
+            "stats", stats
+        );
+        broadcastEvent(code, "QUESTION_ENDED", payload);
     }
 
     @Transactional

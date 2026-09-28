@@ -2,8 +2,9 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { createStompClient } from '../services/websocket';
 import { api } from '../services/api';
-import { CheckCircle2, XCircle, Trophy, Loader2, Swords, Crown } from 'lucide-react';
+import { CheckCircle2, XCircle, Trophy, Loader2, Swords } from 'lucide-react';
 import { soundManager } from '../services/soundManager';
+import { getRomanTitle } from '../utils/romanTitles';
 import type { Question } from '../types';
 
 export default function GamePlayer() {
@@ -22,10 +23,22 @@ export default function GamePlayer() {
     const [streakInfo, setStreakInfo] = useState({ streakBonus: 0, currentStreak: 0 });
     const [powersEnabled, setPowersEnabled] = useState(false);
     const [isBlinded, setIsBlinded] = useState(false);
+    const [blindSecondsLeft, setBlindSecondsLeft] = useState(2);
+    const [leaderboard, setLeaderboard] = useState<any[]>([]);
     const [showBlindModal, setShowBlindModal] = useState(false);
     const [opponents, setOpponents] = useState<any[]>([]);
     const [activeHint, setActiveHint] = useState<string | null>(null);
     const handleGameEventRef = useRef<((event: any) => void) | null>(null);
+    const blindTimerRef = useRef<any>(null);
+
+    const refreshOpponents = () => {
+        if (!code || !player?.id) return;
+        api.get(`/games/${code}`).then(res => {
+            if (res.data?.players) {
+                setOpponents(res.data.players.filter((p: any) => Number(p.id) !== Number(player.id)));
+            }
+        }).catch(() => {});
+    };
 
     useEffect(() => {
         handleGameEventRef.current = (event: any) => {
@@ -33,16 +46,39 @@ export default function GamePlayer() {
                 case 'POWERS_TOGGLED':
                     setPowersEnabled(event.payload);
                     break;
+                case 'PLAYER_JOINED':
+                    if (event.payload && Number(event.payload.id) !== Number(player?.id)) {
+                        setOpponents(prev => {
+                            if (prev.some(p => Number(p.id) === Number(event.payload.id))) return prev;
+                            return [...prev, event.payload];
+                        });
+                    }
+                    break;
                 case 'PLAYER_BLINDED':
-                    if (event.payload === player?.id) {
+                    if (Number(event.payload) === Number(player?.id)) {
                         soundManager.playBlind();
                         setIsBlinded(true);
-                        setTimeout(() => setIsBlinded(false), 2000);
+                        setBlindSecondsLeft(2);
+                        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                            try { navigator.vibrate([120, 60, 200]); } catch (_) {}
+                        }
+                        if (blindTimerRef.current) clearInterval(blindTimerRef.current);
+                        blindTimerRef.current = setInterval(() => {
+                            setBlindSecondsLeft(prev => {
+                                if (prev <= 1) {
+                                    clearInterval(blindTimerRef.current);
+                                    setIsBlinded(false);
+                                    return 0;
+                                }
+                                return prev - 1;
+                            });
+                        }, 1000);
                     }
                     break;
                 case 'GAME_STARTED':
                     setStatus('STARTING');
                     setCountdown(3);
+                    refreshOpponents();
                     break;
                 case 'QUESTION_STARTED':
                     soundManager.playStartFanfare();
@@ -52,10 +88,15 @@ export default function GamePlayer() {
                     setFeedback(null);
                     setActiveHint(null);
                     setQuestionStartTime(Date.now());
+                    refreshOpponents();
                     break;
                 case 'QUESTION_ENDED':
                     setStatus('QUESTION_ENDED');
-                    const me = event.payload.find((p: any) => p.id === player?.id);
+                    const playersList = Array.isArray(event.payload) 
+                        ? event.payload 
+                        : (event.payload?.leaderboard || []);
+                    setLeaderboard(playersList);
+                    const me = playersList.find((p: any) => Number(p.id) === Number(player?.id));
                     if (me && !answered) {
                         soundManager.playWrong();
                         setFeedback('WRONG');
@@ -67,7 +108,11 @@ export default function GamePlayer() {
                 case 'FINISHED':
                     soundManager.playVictory();
                     setStatus('FINISHED');
-                    const meFinal = event.payload.find((p: any) => p.id === player?.id);
+                    const finalPlayers = Array.isArray(event.payload) 
+                        ? event.payload 
+                        : (event.payload?.leaderboard || []);
+                    setLeaderboard(finalPlayers);
+                    const meFinal = finalPlayers.find((p: any) => Number(p.id) === Number(player?.id));
                     if (meFinal) setPlayer(meFinal);
                     break;
             }
@@ -82,7 +127,7 @@ export default function GamePlayer() {
         
         api.get(`/games/${code}`).then(res => {
             setPowersEnabled(res.data.powersEnabled || false);
-            setOpponents(res.data.players.filter((p: any) => p.id !== player.id));
+            setOpponents(res.data.players.filter((p: any) => Number(p.id) !== Number(player.id)));
         });
 
         const client = createStompClient();
@@ -93,7 +138,10 @@ export default function GamePlayer() {
             });
         };
         client.activate();
-        return () => { client.deactivate(); };
+        return () => {
+            client.deactivate();
+            if (blindTimerRef.current) clearInterval(blindTimerRef.current);
+        };
     }, [code, player?.id]);
 
     // Countdown
@@ -219,9 +267,56 @@ export default function GamePlayer() {
             <div className="flex flex-col h-[calc(100vh-100px)] pt-2 animate-fade-in relative">
                 
                 {isBlinded && (
-                    <div className="absolute inset-0 bg-dark-900/95 z-[60] flex flex-col items-center justify-center rounded-2xl animate-fade-in">
-                        <div className="text-6xl mb-4 animate-bounce">😵</div>
-                        <h2 className="text-3xl font-black text-red-500 tracking-wider">CEGADO!</h2>
+                    <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center p-6 bg-[#1a0f07]/95 backdrop-blur-xl animate-screen-shake overflow-hidden shadow-[inset_0_0_120px_rgba(239,68,68,0.55)]">
+                        {/* Sandstorm particles / Swirling background */}
+                        <div className="absolute inset-0 bg-radial from-amber-600/25 via-orange-950/50 to-black/90 pointer-events-none" />
+                        <div className="absolute w-[500px] h-[500px] rounded-full border-4 border-dashed border-amber-500/30 animate-sand-swirl pointer-events-none" />
+                        <div className="absolute w-[350px] h-[350px] rounded-full border-2 border-dashed border-red-500/30 animate-sand-swirl pointer-events-none" style={{ animationDirection: 'reverse', animationDuration: '2.5s' }} />
+
+                        {/* Floating Dust Particles */}
+                        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                            {[...Array(14)].map((_, i) => (
+                                <div
+                                    key={i}
+                                    className="absolute w-3 h-3 bg-amber-400/40 rounded-full blur-[1px] animate-sand-float"
+                                    style={{
+                                        top: `${10 + (i * 6)}%`,
+                                        left: `${8 + (i * 7)}%`,
+                                        animationDelay: `${i * 0.12}s`,
+                                        animationDuration: `${0.8 + (i % 3) * 0.3}s`
+                                    }}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Main Impact Card */}
+                        <div className="relative z-10 flex flex-col items-center text-center max-w-sm card-arena p-8 border-2 border-red-500/70 shadow-[0_0_60px_rgba(239,68,68,0.45)] animate-bounce-in">
+                            <div className="relative mb-3">
+                                <span className="text-7xl block animate-pulse">😵‍💫</span>
+                                <span className="absolute -top-2 -right-3 text-3xl animate-bounce">🌪️</span>
+                                <span className="absolute -bottom-2 -left-3 text-3xl animate-bounce" style={{ animationDelay: '0.2s' }}>💨</span>
+                            </div>
+
+                            <span className="text-[11px] font-black uppercase tracking-[0.25em] text-orange-400 mb-1 flex items-center gap-1.5">
+                                <span>⚠️</span> GOLPE BAIXO DA ARENA <span>⚠️</span>
+                            </span>
+
+                            <h2 className="text-3xl font-black text-gradient-fire tracking-wider mb-2">
+                                AREIA NOS OLHOS!
+                            </h2>
+
+                            <p className="text-amber-200/90 text-sm font-semibold mb-6 leading-relaxed">
+                                Um gladiador oponente atirou areia quente nos seus olhos! Sua visão foi bloqueada.
+                            </p>
+
+                            {/* Progress / Countdown Badge */}
+                            <div className="flex items-center gap-3 bg-black/70 border border-amber-500/40 px-5 py-2.5 rounded-full shadow-inner">
+                                <div className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
+                                <span className="text-xs font-black text-amber-300 uppercase tracking-wider">
+                                    Limpando visão em: <strong className="text-white text-base font-black">{blindSecondsLeft}s</strong>
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 )}
                 
@@ -229,7 +324,12 @@ export default function GamePlayer() {
                 {powersEnabled && !answered && (
                     <div className="flex gap-2 mb-3 px-1">
                         <button 
-                            onClick={() => !player.usedBlind && setShowBlindModal(true)}
+                            onClick={() => {
+                                if (!player.usedBlind) {
+                                    refreshOpponents();
+                                    setShowBlindModal(true);
+                                }
+                            }}
                             disabled={player.usedBlind}
                             className={`flex-1 py-2 rounded-xl border flex flex-col items-center justify-center transition-all ${player.usedBlind ? 'opacity-30 border-dark-600 bg-dark-800' : 'border-orange-500/50 bg-gradient-to-t from-orange-600/40 to-transparent hover:from-orange-500/50 text-white shadow-[0_0_15px_rgba(249,115,22,0.2)]'}`}
                         >
@@ -348,23 +448,46 @@ export default function GamePlayer() {
         );
     }
 
-    // ──── FINALIZADO ────
+    // ──── FINALIZADO COM TÍTULO ROMANO ────
     if (status === 'FINISHED') {
-        return (
-            <div className="flex flex-col items-center justify-center pt-10 animate-fade-in">
-                <Trophy className="w-16 h-16 text-arena-400 mb-4 animate-bounce-in" />
-                <h2 className="text-3xl font-black text-gradient-gold mb-2">ARENA ENCERRADA</h2>
-                <p className="text-dark-400 mb-8 text-sm">Obrigado por jogar, gladiador!</p>
+        const myRank = leaderboard && leaderboard.length > 0
+            ? leaderboard.findIndex((p: any) => Number(p.id) === Number(player?.id)) + 1
+            : 0;
+        const myTitle = getRomanTitle(myRank > 0 ? myRank : 1);
 
-                <div className="card-arena p-8 text-center w-full max-w-sm mb-8 glow-gold">
-                    <Crown className="w-10 h-10 text-arena-400 mx-auto mb-3" />
-                    <div className="text-dark-400 text-xs font-bold uppercase tracking-widest mb-2">Sua Pontuação Final</div>
-                    <div className="text-6xl font-black text-gradient-gold">{player?.score}</div>
+        return (
+            <div className="flex flex-col items-center justify-center pt-8 pb-12 animate-fade-in px-4">
+                <Trophy className="w-16 h-16 text-arena-400 mb-3 animate-bounce-in drop-shadow-[0_0_20px_rgba(245,197,24,0.4)]" />
+                <span className="text-xs font-bold uppercase tracking-[0.25em] text-arena-400 mb-1">Glória de Roma</span>
+                <h2 className="text-3xl md:text-4xl font-black text-gradient-gold mb-2 text-center">ARENA ENCERRADA</h2>
+                <p className="text-dark-400 mb-6 text-sm text-center">Obrigado por lutar bravamente no Coliseu!</p>
+
+                {/* Roman Title Award Card */}
+                <div className="card-arena p-6 text-center w-full max-w-sm mb-6 glow-gold border border-arena-600/40">
+                    <span className="text-5xl block mb-2">{player?.avatar || '⚔️'}</span>
+                    <h3 className="text-xl font-black text-white mb-2">{player?.nickname}</h3>
+
+                    {/* Honor Badge */}
+                    <div className={`px-3 py-1.5 rounded-full border text-xs font-black tracking-wider uppercase mb-1 inline-flex items-center gap-1.5 shadow-md ${myTitle.badgeClass}`}>
+                        <span>{myTitle.icon}</span> {myTitle.title}
+                    </div>
+                    <p className="text-[11px] italic text-dark-300 font-serif mb-4">{myTitle.subtitle}</p>
+
+                    {myRank > 0 && (
+                        <div className="inline-block bg-dark-900/80 px-4 py-1.5 rounded-xl border border-dark-600/50 text-xs font-bold text-dark-300 mb-4 shadow-inner">
+                            Classificação: <strong className="text-arena-400 font-black text-sm">{myRank}º Lugar</strong>
+                        </div>
+                    )}
+
+                    <div className="pt-4 border-t border-dark-600/30">
+                        <div className="text-dark-400 text-xs font-bold uppercase tracking-widest mb-1">Pontuação Final</div>
+                        <div className="text-5xl font-black text-gradient-gold">{player?.score || 0}</div>
+                    </div>
                 </div>
 
                 <button
                     onClick={() => navigate('/')}
-                    className="btn-secondary w-full max-w-sm"
+                    className="btn-secondary w-full max-w-sm cursor-pointer"
                 >
                     VOLTAR AO INÍCIO
                 </button>
