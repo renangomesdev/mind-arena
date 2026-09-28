@@ -30,6 +30,7 @@ export default function GamePlayer() {
     const [activeHint, setActiveHint] = useState<string | null>(null);
     const handleGameEventRef = useRef<((event: any) => void) | null>(null);
     const blindTimerRef = useRef<any>(null);
+    const answerResultRef = useRef<{ correct: boolean; streakBonus: number; currentStreak: number } | null>(null);
 
     const refreshOpponents = () => {
         if (!code || !player?.id) return;
@@ -87,6 +88,7 @@ export default function GamePlayer() {
                     setAnswered(false);
                     setFeedback(null);
                     setActiveHint(null);
+                    answerResultRef.current = null;
                     setQuestionStartTime(Date.now());
                     refreshOpponents();
                     break;
@@ -97,11 +99,18 @@ export default function GamePlayer() {
                         : (event.payload?.leaderboard || []);
                     setLeaderboard(playersList);
                     const me = playersList.find((p: any) => Number(p.id) === Number(player?.id));
-                    if (me && !answered) {
+                    if (!answerResultRef.current) {
                         soundManager.playWrong();
                         setFeedback('WRONG');
                         setScoreAwarded(0);
                         setStreakInfo({ streakBonus: 0, currentStreak: 0 });
+                    } else if (answerResultRef.current.correct) {
+                        soundManager.playCorrect();
+                        if (answerResultRef.current.streakBonus > 0 || answerResultRef.current.currentStreak > 1) {
+                            setTimeout(() => soundManager.playStreak(), 350);
+                        }
+                    } else {
+                        soundManager.playWrong();
                     }
                     if (me) setPlayer(me);
                     break;
@@ -168,14 +177,7 @@ export default function GamePlayer() {
             setFeedback(correct ? 'CORRECT' : 'WRONG');
             setScoreAwarded(pointsAwarded);
             setStreakInfo({ streakBonus, currentStreak });
-            if (correct) {
-                soundManager.playCorrect();
-                if (streakBonus > 0 || currentStreak > 1) {
-                    setTimeout(() => soundManager.playStreak(), 350);
-                }
-            } else {
-                soundManager.playWrong();
-            }
+            answerResultRef.current = { correct, streakBonus, currentStreak };
         } catch {
             alert("Erro ao enviar resposta.");
             setAnswered(false);
