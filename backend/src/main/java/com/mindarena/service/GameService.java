@@ -18,15 +18,17 @@ public class GameService {
     private final PlayerRepository playerRepo;
     private final PlayerAnswerRepository answerRepo;
     private final SimpMessagingTemplate messagingTemplate;
+    private final SecurityAuditService auditService;
 
     public GameService(GameSessionRepository gameRepo, QuizRepository quizRepo, 
                        PlayerRepository playerRepo, PlayerAnswerRepository answerRepo,
-                       SimpMessagingTemplate messagingTemplate) {
+                       SimpMessagingTemplate messagingTemplate, SecurityAuditService auditService) {
         this.gameRepo = gameRepo;
         this.quizRepo = quizRepo;
         this.playerRepo = playerRepo;
         this.answerRepo = answerRepo;
         this.messagingTemplate = messagingTemplate;
+        this.auditService = auditService;
     }
 
     private String generateCode() {
@@ -186,11 +188,15 @@ public class GameService {
     public java.util.Map<String, Object> submitAnswer(String code, Long playerId, Long optionId, int timeTakenMs) {
         GameSession session = getGameByCode(code);
         if (session.getStatus() != GameStatus.QUESTION_ACTIVE) {
+            auditService.recordEvent("PLAYER_" + playerId, "POST", "/api/games/" + code + "/answer",
+                "GAME_OUT_OF_TIME_ANSWER", "LOW", "Tentativa de envio de resposta com a pergunta inativa.", "Player: " + playerId, true);
             throw new RuntimeException("A pergunta não está ativa.");
         }
         
         Question q = session.getQuiz().getQuestions().get(session.getCurrentQuestionIndex());
         if (answerRepo.existsByPlayerIdAndQuestionId(playerId, q.getId())) {
+            auditService.recordEvent("PLAYER_" + playerId, "POST", "/api/games/" + code + "/answer",
+                "GAME_DOUBLE_ANSWER_CHEAT", "MEDIUM", "Tentativa de envio de resposta duplicada para a mesma pergunta (Double-Voting).", "Player: " + playerId, true);
             throw new RuntimeException("Jogador já respondeu esta pergunta.");
         }
         Player player = playerRepo.findById(playerId).orElseThrow();

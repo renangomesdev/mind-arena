@@ -12,6 +12,7 @@ public class Question {
     private Long id;
     
     private String text;
+    @JsonIgnore
     private String hint;
     private Integer timeLimitSeconds;
     private Integer orderIndex;
@@ -30,6 +31,7 @@ public class Question {
     public void setId(Long id) { this.id = id; }
     public String getText() { return text; }
     public void setText(String text) { this.text = text; }
+    @JsonIgnore
     public String getHint() { return hint; }
     public void setHint(String hint) { this.hint = hint; }
     public Integer getTimeLimitSeconds() { return timeLimitSeconds; }

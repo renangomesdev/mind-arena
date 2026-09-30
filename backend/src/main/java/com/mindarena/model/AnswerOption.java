@@ -11,6 +11,7 @@ public class AnswerOption {
     
     private String text;
     @Column(name = "is_correct")
+    @JsonIgnore
     private boolean isCorrect;
 
     @ManyToOne
@@ -28,6 +29,7 @@ public class AnswerOption {
     public void setId(Long id) { this.id = id; }
     public String getText() { return text; }
     public void setText(String text) { this.text = text; }
+    @JsonIgnore
     public boolean isCorrect() { return isCorrect; }
     public void setCorrect(boolean correct) { isCorrect = correct; }
     public Question getQuestion() { return question; }
