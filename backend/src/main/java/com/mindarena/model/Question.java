@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.util.List;
 import java.util.ArrayList;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Entity
 public class Question {
@@ -34,6 +35,11 @@ public class Question {
     @JsonIgnore
     public String getHint() { return hint; }
     public void setHint(String hint) { this.hint = hint; }
+
+    @JsonProperty("hasHint")
+    public boolean hasHint() {
+        return hint != null && !hint.trim().isEmpty();
+    }
     public Integer getTimeLimitSeconds() { return timeLimitSeconds; }
     public void setTimeLimitSeconds(Integer timeLimitSeconds) { this.timeLimitSeconds = timeLimitSeconds; }
     public Integer getOrderIndex() { return orderIndex; }

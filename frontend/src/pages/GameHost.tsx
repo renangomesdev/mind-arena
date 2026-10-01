@@ -187,7 +187,7 @@ export default function GameHost() {
 
     // ──── LOBBY ────
     if (status === 'WAITING') {
-        const canEnablePowers = quiz.questions.every(q => q.hint && q.hint.trim().length > 0);
+        const canEnablePowers = quiz.questions.every(q => q.hasHint || (q.hint && q.hint.trim().length > 0));
         return (
             <div className="flex flex-col items-center pt-8 animate-fade-in">
                 <div className="card-arena p-6 md:p-8 w-full max-w-2xl mb-8 glow-gold animate-scale-in flex flex-col md:flex-row items-center justify-between gap-6">

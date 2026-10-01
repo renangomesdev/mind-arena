@@ -53,7 +53,7 @@ export default function Home() {
         const allHaveHints = Boolean(
             quiz.questions &&
             quiz.questions.length > 0 &&
-            quiz.questions.every(q => q.hint && q.hint.trim().length > 0)
+            quiz.questions.every(q => q.hasHint || (q.hint && q.hint.trim().length > 0))
         );
         setEnablePowers(allHaveHints);
     };
@@ -241,7 +241,7 @@ export default function Home() {
                             const allHaveHints = Boolean(
                                 selectedQuizToHost.questions &&
                                 selectedQuizToHost.questions.length > 0 &&
-                                selectedQuizToHost.questions.every(q => q.hint && q.hint.trim().length > 0)
+                                selectedQuizToHost.questions.every(q => q.hasHint || (q.hint && q.hint.trim().length > 0))
                             );
                             return (
                                 <div className="bg-gradient-to-br from-orange-500/10 via-dark-800 to-dark-900 p-5 rounded-2xl border border-orange-500/30 mb-6">

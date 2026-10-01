@@ -10,6 +10,7 @@ export interface Question {
     id?: number;
     text: string;
     hint?: string;
+    hasHint?: boolean;
     timeLimitSeconds: number;
     orderIndex: number;
     options: AnswerOption[];

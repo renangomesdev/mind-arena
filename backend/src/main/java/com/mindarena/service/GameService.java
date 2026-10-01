@@ -265,6 +265,7 @@ public class GameService {
         );
     }
 
+    @Transactional
     public void togglePowers(String code, boolean enable) {
         GameSession session = getGameByCode(code);
         if (session.getStatus() != GameStatus.WAITING) {
