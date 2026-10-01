@@ -12,8 +12,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
-        registry.addEndpoint("/ws").setAllowedOriginPatterns("*"); // para clientes que não usam sockjs
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("https://mind-arena.duckdns.org", "http://localhost:*", "http://127.0.0.1:*")
+                .withSockJS();
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("https://mind-arena.duckdns.org", "http://localhost:*", "http://127.0.0.1:*");
     }
 
     @Override

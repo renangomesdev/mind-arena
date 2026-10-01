@@ -3,6 +3,9 @@ package com.mindarena.model;
 import jakarta.persistence.*;
 
 @Entity
+@Table(name = "player_answer", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_player_question", columnNames = {"player_id", "question_id"})
+})
 public class PlayerAnswer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

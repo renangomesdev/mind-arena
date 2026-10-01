@@ -79,12 +79,22 @@ public class GameService {
         if (session.getStatus() != GameStatus.WAITING) {
             throw new RuntimeException("Não é possível entrar nesta partida. Estado atual: " + session.getStatus());
         }
-        if (playerRepo.existsByGameSessionIdAndNickname(session.getId(), nickname)) {
+        if (nickname == null || nickname.trim().isEmpty()) {
+            throw new RuntimeException("Apelido não pode ser vazio.");
+        }
+        String cleanNickname = nickname.trim();
+        if (cleanNickname.length() > 30) {
+            throw new RuntimeException("Apelido deve ter no máximo 30 caracteres.");
+        }
+        if (session.getPlayers() != null && session.getPlayers().size() >= 100) {
+            throw new RuntimeException("A arena atingiu a capacidade máxima de 100 gladiadores.");
+        }
+        if (playerRepo.existsByGameSessionIdAndNickname(session.getId(), cleanNickname)) {
             throw new RuntimeException("Apelido já em uso nesta partida.");
         }
         
         Player player = new Player();
-        player.setNickname(nickname);
+        player.setNickname(cleanNickname);
         player.setAvatar(avatar != null && !avatar.isBlank() ? avatar : "⚔️");
         session.addPlayer(player);
         player = playerRepo.save(player);
@@ -212,7 +222,14 @@ public class GameService {
             player.incrementStreak();
             
             int maxTime = q.getTimeLimitSeconds() * 1000;
-            if (timeTakenMs < 0) timeTakenMs = 0;
+            // Validação anti-cheat: tempo mínimo de reação humana plausível (200ms)
+            if (timeTakenMs < 200) {
+                if (timeTakenMs <= 0) {
+                    auditService.recordEvent("PLAYER_" + playerId, "POST", "/api/games/" + code + "/answer",
+                        "GAME_INHUMAN_SPEED_CHEAT", "MEDIUM", "Manipulação de payload: timeTakenMs menor ou igual a zero.", "Player: " + playerId, false);
+                }
+                timeTakenMs = 200;
+            }
             if (timeTakenMs > maxTime) timeTakenMs = maxTime;
             double percentage = 1.0 - ((double) timeTakenMs / maxTime);
             if (percentage < 0) percentage = 0;

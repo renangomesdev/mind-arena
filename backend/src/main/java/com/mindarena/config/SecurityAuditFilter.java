@@ -121,6 +121,10 @@ public class SecurityAuditFilter extends OncePerRequestFilter {
 
     private boolean isRateLimitExceeded(String clientIp) {
         long now = System.currentTimeMillis();
+        // Limpeza preventiva periódica se o cache ultrapassar 500 IPs ativos (prevenção contra memory leak)
+        if (RATE_LIMIT_CACHE.size() > 500) {
+            RATE_LIMIT_CACHE.entrySet().removeIf(e -> (now - e.getValue().windowStartTime) > WINDOW_MS * 2);
+        }
         RateTracker tracker = RATE_LIMIT_CACHE.compute(clientIp, (k, v) -> {
             if (v == null || (now - v.windowStartTime) > WINDOW_MS) {
                 return new RateTracker(now, 1);
