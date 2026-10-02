@@ -3,12 +3,14 @@ package com.mindarena.service;
 import com.mindarena.model.*;
 import com.mindarena.repository.*;
 import com.mindarena.dto.GameEventDTO;
+import com.mindarena.dto.PedagogicalReportDTO;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Random;
 import java.util.List;
+import java.util.ArrayList;
 
 @Service
 public class GameService {
@@ -315,6 +317,151 @@ public class GameService {
         
         String hint = (q.getHint() != null && !q.getHint().isBlank()) ? q.getHint() : "Sem dica cadastrada.";
         return java.util.Map.of("hint", hint);
+    }
+
+    @Transactional(readOnly = true)
+    public PedagogicalReportDTO getPedagogicalReport(String code) {
+        GameSession session = getGameByCode(code);
+        if (session.getStatus() != GameStatus.FINISHED) {
+            throw new RuntimeException("Relatório pedagógico disponível apenas após o término da partida.");
+        }
+
+        Quiz quiz = session.getQuiz();
+        List<Question> questions = quiz.getQuestions() != null ? quiz.getQuestions() : List.of();
+        int totalPlayers = session.getPlayers() != null ? session.getPlayers().size() : 0;
+
+        List<PlayerAnswer> allAnswers = answerRepo.findByPlayerGameSessionId(session.getId());
+        int totalAnswers = allAnswers.size();
+
+        PedagogicalReportDTO report = new PedagogicalReportDTO();
+        report.setGameCode(session.getCode());
+        report.setQuizTitle(quiz.getTitle());
+        report.setQuizDescription(quiz.getDescription());
+        report.setGeneratedAt(java.time.LocalDateTime.now());
+        report.setTotalPlayers(totalPlayers);
+        report.setTotalQuestions(questions.size());
+        report.setTotalAnswers(totalAnswers);
+
+        long overallCorrect = allAnswers.stream()
+            .filter(a -> a.getAnswerOption() != null && a.getAnswerOption().isCorrect())
+            .count();
+        double overallAccuracy = totalAnswers > 0
+            ? Math.round(((double) overallCorrect / totalAnswers) * 1000.0) / 10.0
+            : 0.0;
+        report.setOverallAccuracyPercentage(overallAccuracy);
+
+        double totalTimeSeconds = allAnswers.stream()
+            .mapToInt(PlayerAnswer::getTimeTakenMs)
+            .sum() / 1000.0;
+        double avgTime = totalAnswers > 0
+            ? Math.round((totalTimeSeconds / totalAnswers) * 10.0) / 10.0
+            : 0.0;
+        report.setAverageTimeTakenSeconds(avgTime);
+
+        List<PedagogicalReportDTO.QuestionStatDTO> questionStatsList = new ArrayList<>();
+        PedagogicalReportDTO.QuestionStatDTO topMastered = null;
+        PedagogicalReportDTO.QuestionStatDTO mostChallenging = null;
+
+        for (Question q : questions) {
+            List<PlayerAnswer> qAnswers = allAnswers.stream()
+                .filter(a -> a.getQuestion() != null && a.getQuestion().getId().equals(q.getId()))
+                .toList();
+
+            int qTotal = qAnswers.size();
+            long qCorrect = qAnswers.stream()
+                .filter(a -> a.getAnswerOption() != null && a.getAnswerOption().isCorrect())
+                .count();
+
+            double qAccuracy = qTotal > 0
+                ? Math.round(((double) qCorrect / qTotal) * 1000.0) / 10.0
+                : 0.0;
+
+            double qAvgTime = qTotal > 0
+                ? Math.round((qAnswers.stream().mapToInt(PlayerAnswer::getTimeTakenMs).average().orElse(0.0) / 100.0)) / 10.0
+                : 0.0;
+
+            String diagnosis;
+            if (qTotal == 0) {
+                diagnosis = "SEM RESPOSTAS";
+            } else if (qAccuracy >= 80.0) {
+                diagnosis = "CONSOLIDADO";
+            } else if (qAccuracy >= 60.0) {
+                diagnosis = "BOM";
+            } else if (qAccuracy >= 40.0) {
+                diagnosis = "PONTO DE ATENÇÃO";
+            } else {
+                diagnosis = "CRÍTICO";
+            }
+
+            // Estatísticas por alternativa
+            List<PedagogicalReportDTO.OptionStatDTO> optionStats = new ArrayList<>();
+            String topMistakeText = null;
+            long maxMistakeCount = 0;
+
+            for (AnswerOption opt : q.getOptions()) {
+                long optCount = qAnswers.stream()
+                    .filter(a -> a.getAnswerOption() != null && a.getAnswerOption().getId().equals(opt.getId()))
+                    .count();
+                double optPercent = qTotal > 0
+                    ? Math.round(((double) optCount / qTotal) * 1000.0) / 10.0
+                    : 0.0;
+
+                optionStats.add(new PedagogicalReportDTO.OptionStatDTO(
+                    opt.getId(), opt.getText(), opt.isCorrect(), (int) optCount, optPercent
+                ));
+
+                if (!opt.isCorrect() && optCount > maxMistakeCount) {
+                    maxMistakeCount = optCount;
+                    topMistakeText = opt.getText();
+                }
+            }
+
+            double topMistakePercent = qTotal > 0 && maxMistakeCount > 0
+                ? Math.round(((double) maxMistakeCount / qTotal) * 1000.0) / 10.0
+                : 0.0;
+
+            PedagogicalReportDTO.QuestionStatDTO qStat = new PedagogicalReportDTO.QuestionStatDTO();
+            qStat.setQuestionId(q.getId());
+            qStat.setOrderIndex(q.getOrderIndex() != null ? q.getOrderIndex() : 0);
+            qStat.setText(q.getText());
+            qStat.setTotalAnswers(qTotal);
+            qStat.setCorrectAnswers((int) qCorrect);
+            qStat.setAccuracyPercentage(qAccuracy);
+            qStat.setAverageTimeSeconds(qAvgTime);
+            qStat.setPedagogicalDiagnosis(diagnosis);
+            qStat.setTopMistakeOptionText(topMistakeText);
+            qStat.setTopMistakePercentage(topMistakePercent);
+            qStat.setOptions(optionStats);
+
+            questionStatsList.add(qStat);
+
+            if (qTotal > 0) {
+                if (topMastered == null || qAccuracy > topMastered.getAccuracyPercentage()) {
+                    topMastered = qStat;
+                }
+                if (mostChallenging == null || qAccuracy < mostChallenging.getAccuracyPercentage()) {
+                    mostChallenging = qStat;
+                }
+            }
+        }
+
+        report.setQuestions(questionStatsList);
+
+        if (topMastered != null) {
+            report.setMostMasteredQuestion(new PedagogicalReportDTO.HighlightQuestionDTO(
+                topMastered.getQuestionId(), topMastered.getOrderIndex(), topMastered.getText(),
+                topMastered.getAccuracyPercentage(), topMastered.getTopMistakeOptionText(), topMastered.getTopMistakePercentage()
+            ));
+        }
+
+        if (mostChallenging != null) {
+            report.setMostChallengingQuestion(new PedagogicalReportDTO.HighlightQuestionDTO(
+                mostChallenging.getQuestionId(), mostChallenging.getOrderIndex(), mostChallenging.getText(),
+                mostChallenging.getAccuracyPercentage(), mostChallenging.getTopMistakeOptionText(), mostChallenging.getTopMistakePercentage()
+            ));
+        }
+
+        return report;
     }
 
     private void broadcastEvent(String code, String type, Object payload) {

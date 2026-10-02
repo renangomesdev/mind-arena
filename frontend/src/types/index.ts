@@ -41,3 +41,50 @@ export interface GameSession {
     quiz: Quiz;
     players: Player[];
 }
+
+export interface OptionStat {
+    optionId: number;
+    text: string;
+    correct: boolean;
+    count: number;
+    percentage: number;
+}
+
+export interface QuestionStat {
+    questionId: number;
+    orderIndex: number;
+    text: string;
+    totalAnswers: number;
+    correctAnswers: number;
+    accuracyPercentage: number;
+    averageTimeSeconds: number;
+    pedagogicalDiagnosis: string;
+    topMistakeOptionText?: string;
+    topMistakePercentage?: number;
+    options: OptionStat[];
+}
+
+export interface HighlightQuestion {
+    questionId: number;
+    orderIndex: number;
+    text: string;
+    accuracyPercentage: number;
+    topMistakeOptionText?: string;
+    topMistakePercentage?: number;
+}
+
+export interface PedagogicalReport {
+    gameCode: string;
+    quizTitle: string;
+    quizDescription: string;
+    generatedAt: string;
+    totalPlayers: number;
+    totalQuestions: number;
+    totalAnswers: number;
+    overallAccuracyPercentage: number;
+    averageTimeTakenSeconds: number;
+    mostMasteredQuestion?: HighlightQuestion;
+    mostChallengingQuestion?: HighlightQuestion;
+    questions: QuestionStat[];
+}
+

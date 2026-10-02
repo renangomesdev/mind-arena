@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Users, Play, Trophy, ArrowRight, ArrowLeft, Timer, MessageSquare, SkipForward, Crown, Medal, Copy, QrCode, BarChart3, CheckCircle2, XCircle } from 'lucide-react';
+import { Users, Play, Trophy, ArrowRight, ArrowLeft, Timer, MessageSquare, SkipForward, Crown, Medal, Copy, QrCode, BarChart3, CheckCircle2, XCircle, FileText } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../services/api';
 import { createStompClient } from '../services/websocket';
 import { soundManager } from '../services/soundManager';
 import { getRomanTitle } from '../utils/romanTitles';
-import type { Quiz, Question } from '../types';
+import PedagogicalReportModal from '../components/PedagogicalReportModal';
+import type { Quiz, Question, PedagogicalReport } from '../types';
 
 interface Player {
     id: number;
@@ -48,7 +49,24 @@ export default function GameHost() {
     const [powersEnabled, setPowersEnabled] = useState(false);
     const [questionStats, setQuestionStats] = useState<QuestionStats | null>(null);
     const [resultTab, setResultTab] = useState<'STATS' | 'LEADERBOARD'>('STATS');
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportData, setReportData] = useState<PedagogicalReport | null>(null);
+    const [loadingReport, setLoadingReport] = useState(false);
     const handleGameEventRef = useRef<((event: any) => void) | null>(null);
+
+    const handleOpenReport = async () => {
+        setShowReportModal(true);
+        setLoadingReport(true);
+        try {
+            const res = await api.get(`/games/${code}/report`);
+            setReportData(res.data);
+        } catch (err: any) {
+            alert(err.response?.data?.message || "Não foi possível carregar o relatório pedagógico.");
+            setShowReportModal(false);
+        } finally {
+            setLoadingReport(false);
+        }
+    };
 
     useEffect(() => {
         handleGameEventRef.current = (event: any) => {
@@ -693,12 +711,29 @@ export default function GameHost() {
                     </div>
                 )}
 
-                <button
-                    onClick={() => navigate('/')}
-                    className="btn-secondary flex items-center gap-2 animate-fade-in-up cursor-pointer" style={{ animationDelay: '0.9s' }}
-                >
-                    <ArrowLeft className="w-5 h-5" /> VOLTAR AO INÍCIO
-                </button>
+                <div className="flex flex-col sm:flex-row items-center gap-4 animate-fade-in-up" style={{ animationDelay: '0.9s' }}>
+                    <button
+                        onClick={handleOpenReport}
+                        className="px-6 py-3.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black rounded-2xl flex items-center gap-2.5 shadow-xl shadow-amber-500/20 text-sm tracking-wider uppercase transition-all cursor-pointer hover:scale-105 active:scale-95"
+                    >
+                        <FileText className="w-5 h-5" />
+                        RELATÓRIO PEDAGÓGICO (PDF)
+                    </button>
+                    <button
+                        onClick={() => navigate('/')}
+                        className="btn-secondary flex items-center gap-2 cursor-pointer"
+                    >
+                        <ArrowLeft className="w-5 h-5" /> VOLTAR AO INÍCIO
+                    </button>
+                </div>
+
+                {showReportModal && (
+                    <PedagogicalReportModal
+                        report={reportData}
+                        loading={loadingReport}
+                        onClose={() => setShowReportModal(false)}
+                    />
+                )}
             </div>
         );
     }
