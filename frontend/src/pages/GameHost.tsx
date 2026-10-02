@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Users, Play, Trophy, ArrowRight, ArrowLeft, Timer, MessageSquare, SkipForward, Crown, Medal, Copy, QrCode, BarChart3, CheckCircle2, XCircle, FileText } from 'lucide-react';
+import { Users, Play, Trophy, ArrowRight, ArrowLeft, Timer, MessageSquare, SkipForward, Crown, Medal, Copy, QrCode, BarChart3, CheckCircle2, XCircle, FileText, Maximize, Minimize } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { api } from '../services/api';
 import { createStompClient } from '../services/websocket';
@@ -52,7 +52,41 @@ export default function GameHost() {
     const [showReportModal, setShowReportModal] = useState(false);
     const [reportData, setReportData] = useState<PedagogicalReport | null>(null);
     const [loadingReport, setLoadingReport] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
     const handleGameEventRef = useRef<((event: any) => void) | null>(null);
+
+    useEffect(() => {
+        const onFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', onFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+    }, []);
+
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+            document.exitFullscreen().catch(() => {});
+        }
+    };
+
+    const renderProjectorButton = () => (
+        <div className="no-print fixed top-3 right-4 z-40 flex items-center gap-2">
+            <button
+                onClick={toggleFullscreen}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-xs font-black tracking-wide uppercase transition-all shadow-lg cursor-pointer backdrop-blur-md ${
+                    isFullscreen 
+                        ? 'bg-arena-500 text-dark-950 border-arena-400 shadow-arena-500/30' 
+                        : 'bg-dark-900/80 hover:bg-dark-800 text-arena-400 hover:text-arena-300 border-arena-500/40'
+                }`}
+                title={isFullscreen ? "Sair da Tela Cheia (Esc)" : "Ativar Modo Telão para Sala de Aula"}
+            >
+                {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
+                <span>{isFullscreen ? "Sair do Telão" : "Modo Telão"}</span>
+            </button>
+        </div>
+    );
 
     const handleOpenReport = async () => {
         setShowReportModal(true);
@@ -208,6 +242,7 @@ export default function GameHost() {
         const canEnablePowers = quiz.questions.every(q => q.hasHint || (q.hint && q.hint.trim().length > 0));
         return (
             <div className="flex flex-col items-center pt-8 animate-fade-in">
+                {renderProjectorButton()}
                 <div className="card-arena p-6 md:p-8 w-full max-w-2xl mb-8 glow-gold animate-scale-in flex flex-col md:flex-row items-center justify-between gap-6">
                     {/* Left: Code & Info */}
                     <div className="text-center md:text-left flex-1">
@@ -311,6 +346,7 @@ export default function GameHost() {
     if (status === 'STARTING') {
         return (
             <div className="flex flex-col items-center justify-center min-h-[65vh]">
+                {renderProjectorButton()}
                 {countdown > 0 ? (
                     <div key={countdown} className="animate-count-pop">
                         <span className="text-[12rem] font-black text-gradient-gold leading-none drop-shadow-2xl">{countdown}</span>
@@ -330,6 +366,7 @@ export default function GameHost() {
 
         return (
             <div className="flex flex-col pt-4 animate-fade-in">
+                {renderProjectorButton()}
                 {/* Top Bar */}
                 <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
                     <div className="card-arena px-5 py-3 flex items-center gap-3">
@@ -428,6 +465,7 @@ export default function GameHost() {
 
         return (
             <div className="flex flex-col items-center pt-4 w-full max-w-4xl mx-auto animate-fade-in">
+                {renderProjectorButton()}
                 {/* Cabeçalho da Pergunta */}
                 <div className="text-center mb-6 w-full animate-fade-in-down">
                     <span className="text-xs font-bold uppercase tracking-widest text-arena-400 bg-arena-500/10 border border-arena-500/20 px-3.5 py-1 rounded-full inline-block mb-3">
@@ -613,6 +651,7 @@ export default function GameHost() {
 
         return (
             <div className="flex flex-col items-center pt-6 pb-12 w-full max-w-4xl mx-auto animate-fade-in">
+                {renderProjectorButton()}
                 <div className="no-print flex flex-col items-center w-full">
                     <Trophy className="w-16 h-16 text-arena-400 mb-3 animate-bounce-in drop-shadow-[0_0_25px_rgba(245,197,24,0.4)]" />
                     <span className="text-xs font-bold uppercase tracking-[0.3em] text-arena-400 mb-1">Honra e Glória Eterna</span>

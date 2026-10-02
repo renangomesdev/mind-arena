@@ -4,6 +4,7 @@ import com.mindarena.model.*;
 import com.mindarena.repository.*;
 import com.mindarena.dto.GameEventDTO;
 import com.mindarena.dto.PedagogicalReportDTO;
+import com.mindarena.dto.PlayerReviewDTO;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -462,6 +463,95 @@ public class GameService {
         }
 
         return report;
+    }
+
+    @Transactional(readOnly = true)
+    public PlayerReviewDTO getPlayerReview(String code, Long playerId) {
+        GameSession session = getGameByCode(code);
+        if (session.getStatus() != GameStatus.FINISHED) {
+            throw new RuntimeException("Gabarito de estudo disponível apenas após o término da partida.");
+        }
+
+        Player player = playerRepo.findById(playerId)
+            .orElseThrow(() -> new RuntimeException("Jogador não encontrado."));
+
+        if (!player.getGameSession().getId().equals(session.getId())) {
+            throw new RuntimeException("Jogador não pertence a esta sessão de jogo.");
+        }
+
+        List<Player> leaderboard = playerRepo.findByGameSessionIdOrderByScoreDesc(session.getId());
+        int rank = 1;
+        for (int i = 0; i < leaderboard.size(); i++) {
+            if (leaderboard.get(i).getId().equals(player.getId())) {
+                rank = i + 1;
+                break;
+            }
+        }
+
+        List<PlayerAnswer> playerAnswers = answerRepo.findByPlayerId(playerId);
+        List<Question> questions = session.getQuiz().getQuestions() != null ? session.getQuiz().getQuestions() : List.of();
+
+        PlayerReviewDTO dto = new PlayerReviewDTO();
+        dto.setPlayerId(player.getId());
+        dto.setNickname(player.getNickname());
+        dto.setAvatar(player.getAvatar());
+        dto.setFinalScore(player.getScore());
+        dto.setRank(rank);
+        dto.setTotalQuestions(questions.size());
+
+        int correctCount = 0;
+        List<PlayerReviewDTO.QuestionReviewDTO> qReviews = new ArrayList<>();
+
+        for (Question q : questions) {
+            PlayerReviewDTO.QuestionReviewDTO qDto = new PlayerReviewDTO.QuestionReviewDTO();
+            qDto.setQuestionId(q.getId());
+            qDto.setOrderIndex(q.getOrderIndex() != null ? q.getOrderIndex() : 0);
+            qDto.setQuestionText(q.getText());
+            qDto.setHint(q.getHint());
+
+            // Buscar opção correta
+            AnswerOption correctOpt = q.getOptions().stream()
+                .filter(AnswerOption::isCorrect)
+                .findFirst()
+                .orElse(null);
+            if (correctOpt != null) {
+                qDto.setCorrectOptionId(correctOpt.getId());
+                qDto.setCorrectOptionText(correctOpt.getText());
+            }
+
+            // Buscar resposta do aluno
+            PlayerAnswer answer = playerAnswers.stream()
+                .filter(a -> a.getQuestion() != null && a.getQuestion().getId().equals(q.getId()))
+                .findFirst()
+                .orElse(null);
+
+            if (answer != null && answer.getAnswerOption() != null) {
+                qDto.setSelectedOptionId(answer.getAnswerOption().getId());
+                qDto.setSelectedOptionText(answer.getAnswerOption().getText());
+                boolean isCorrect = answer.getAnswerOption().isCorrect();
+                qDto.setCorrect(isCorrect);
+                qDto.setPointsAwarded(answer.getPointsAwarded());
+                qDto.setTimeTakenMs(answer.getTimeTakenMs());
+                if (isCorrect) correctCount++;
+            } else {
+                qDto.setSelectedOptionId(null);
+                qDto.setSelectedOptionText("Tempo esgotado (não respondeu)");
+                qDto.setCorrect(false);
+                qDto.setPointsAwarded(0);
+                qDto.setTimeTakenMs(0);
+            }
+
+            qReviews.add(qDto);
+        }
+
+        dto.setCorrectCount(correctCount);
+        double accuracy = questions.size() > 0 
+            ? Math.round(((double) correctCount / questions.size()) * 1000.0) / 10.0 
+            : 0.0;
+        dto.setAccuracyPercentage(accuracy);
+        dto.setQuestions(qReviews);
+
+        return dto;
     }
 
     private void broadcastEvent(String code, String type, Object payload) {

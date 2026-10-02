@@ -88,3 +88,30 @@ export interface PedagogicalReport {
     questions: QuestionStat[];
 }
 
+export interface QuestionReview {
+    questionId: number;
+    orderIndex: number;
+    questionText: string;
+    selectedOptionId: number | null;
+    selectedOptionText: string;
+    correctOptionId: number;
+    correctOptionText: string;
+    correct: boolean;
+    pointsAwarded: number;
+    timeTakenMs: number;
+    hint?: string;
+}
+
+export interface PlayerReview {
+    playerId: number;
+    nickname: string;
+    avatar: string;
+    finalScore: number;
+    rank: number;
+    totalQuestions: number;
+    correctCount: number;
+    accuracyPercentage: number;
+    questions: QuestionReview[];
+}
+
+

@@ -2,10 +2,11 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { createStompClient } from '../services/websocket';
 import { api } from '../services/api';
-import { CheckCircle2, XCircle, Trophy, Loader2, Swords } from 'lucide-react';
+import { CheckCircle2, XCircle, Trophy, Loader2, Swords, BookOpen } from 'lucide-react';
 import { soundManager } from '../services/soundManager';
 import { getRomanTitle } from '../utils/romanTitles';
-import type { Question } from '../types';
+import PlayerReviewModal from '../components/PlayerReviewModal';
+import type { Question, PlayerReview } from '../types';
 
 export default function GamePlayer() {
     const { code } = useParams();
@@ -28,9 +29,27 @@ export default function GamePlayer() {
     const [showBlindModal, setShowBlindModal] = useState(false);
     const [opponents, setOpponents] = useState<any[]>([]);
     const [activeHint, setActiveHint] = useState<string | null>(null);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [reviewData, setReviewData] = useState<PlayerReview | null>(null);
+    const [loadingReview, setLoadingReview] = useState(false);
     const handleGameEventRef = useRef<((event: any) => void) | null>(null);
     const blindTimerRef = useRef<any>(null);
     const answerResultRef = useRef<{ correct: boolean; streakBonus: number; currentStreak: number } | null>(null);
+
+    const handleOpenReview = async () => {
+        if (!code || !player?.id) return;
+        setShowReviewModal(true);
+        setLoadingReview(true);
+        try {
+            const res = await api.get(`/games/${code}/players/${player.id}/review`);
+            setReviewData(res.data);
+        } catch (err: any) {
+            alert(err.response?.data?.message || "Não foi possível carregar o gabarito.");
+            setShowReviewModal(false);
+        } finally {
+            setLoadingReview(false);
+        }
+    };
 
     const refreshOpponents = () => {
         if (!code || !player?.id) return;
@@ -487,12 +506,28 @@ export default function GamePlayer() {
                     </div>
                 </div>
 
-                <button
-                    onClick={() => navigate('/')}
-                    className="btn-secondary w-full max-w-sm cursor-pointer"
-                >
-                    VOLTAR AO INÍCIO
-                </button>
+                <div className="w-full max-w-sm flex flex-col gap-3">
+                    <button
+                        onClick={handleOpenReview}
+                        className="btn-primary w-full flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-arena-500/20 text-dark-950 font-black text-sm py-3.5 tracking-wider uppercase transition-all hover:scale-105 active:scale-95"
+                    >
+                        <BookOpen className="w-5 h-5" /> VER MEU GABARITO & REVISÃO
+                    </button>
+                    <button
+                        onClick={() => navigate('/')}
+                        className="btn-secondary w-full cursor-pointer"
+                    >
+                        VOLTAR AO INÍCIO
+                    </button>
+                </div>
+
+                {showReviewModal && (
+                    <PlayerReviewModal
+                        review={reviewData}
+                        loading={loadingReview}
+                        onClose={() => setShowReviewModal(false)}
+                    />
+                )}
             </div>
         );
     }
