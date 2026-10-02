@@ -11,13 +11,13 @@ import './index.css';
 function App() {
   return (
     <Router>
-      <div className="fixed inset-0 z-[-1] overflow-hidden">
+      <div className="no-print fixed inset-0 z-[-1] overflow-hidden">
         <div className="absolute inset-0 bg-[#0f0e0c]/70 z-10" />
         <img src={bgImage} alt="" className="w-full h-full object-cover blur-sm opacity-50 scale-105" />
       </div>
 
       <div className="min-h-screen flex flex-col relative z-0">
-        <header className="px-4 py-3 flex justify-between items-center bg-[#1a1816]/60 backdrop-blur-lg sticky top-0 z-50 border-b border-[#33302b]/50 max-w-5xl mx-auto w-full rounded-b-2xl">
+        <header className="no-print px-4 py-3 flex justify-between items-center bg-[#1a1816]/60 backdrop-blur-lg sticky top-0 z-50 border-b border-[#33302b]/50 max-w-5xl mx-auto w-full rounded-b-2xl">
           <div className="w-10 md:w-24"></div>
           <a href="/" className="flex items-center gap-3 group">
             <img

@@ -613,10 +613,11 @@ export default function GameHost() {
 
         return (
             <div className="flex flex-col items-center pt-6 pb-12 w-full max-w-4xl mx-auto animate-fade-in">
-                <Trophy className="w-16 h-16 text-arena-400 mb-3 animate-bounce-in drop-shadow-[0_0_25px_rgba(245,197,24,0.4)]" />
-                <span className="text-xs font-bold uppercase tracking-[0.3em] text-arena-400 mb-1">Honra e Glória Eterna</span>
-                <h2 className="text-4xl md:text-5xl font-black text-gradient-gold mb-2 animate-fade-in-up">ARENA ENCERRADA</h2>
-                <p className="text-dark-400 mb-10 animate-fade-in-up text-sm md:text-base">Os deuses de Roma consagraram os maiores gladiadores!</p>
+                <div className="no-print flex flex-col items-center w-full">
+                    <Trophy className="w-16 h-16 text-arena-400 mb-3 animate-bounce-in drop-shadow-[0_0_25px_rgba(245,197,24,0.4)]" />
+                    <span className="text-xs font-bold uppercase tracking-[0.3em] text-arena-400 mb-1">Honra e Glória Eterna</span>
+                    <h2 className="text-4xl md:text-5xl font-black text-gradient-gold mb-2 animate-fade-in-up">ARENA ENCERRADA</h2>
+                    <p className="text-dark-400 mb-10 animate-fade-in-up text-sm md:text-base">Os deuses de Roma consagraram os maiores gladiadores!</p>
 
                 {/* Podium Container - Balanced height to prevent any overlap */}
                 <div className="flex items-end justify-center gap-4 md:gap-8 mb-12 min-h-[440px] pt-10 animate-fade-in-up w-full px-2">
@@ -725,6 +726,7 @@ export default function GameHost() {
                     >
                         <ArrowLeft className="w-5 h-5" /> VOLTAR AO INÍCIO
                     </button>
+                </div>
                 </div>
 
                 {showReportModal && (

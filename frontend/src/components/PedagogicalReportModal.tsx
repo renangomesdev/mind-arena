@@ -69,7 +69,7 @@ export default function PedagogicalReportModal({ report, loading, onClose }: Ped
         : '';
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+        <div className="pedagogical-modal-overlay fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
             {/* Print Stylesheet */}
             <style dangerouslySetInnerHTML={{ __html: `
                 @media print {
@@ -79,18 +79,62 @@ export default function PedagogicalReportModal({ report, loading, onClose }: Ped
                     }
                     html, body {
                         background: #ffffff !important;
+                        background-image: none !important;
                         color: #0f172a !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        height: auto !important;
+                        min-height: 0 !important;
+                        overflow: visible !important;
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
                     }
-                    body * {
-                        visibility: hidden !important;
+                    .no-print {
+                        display: none !important;
                     }
-                    #pedagogical-report-root, #pedagogical-report-root * {
-                        visibility: visible !important;
+                    .pedagogical-modal-overlay {
+                        position: static !important;
+                        display: block !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        background: transparent !important;
+                        backdrop-filter: none !important;
+                        overflow: visible !important;
+                        width: 100% !important;
+                        height: auto !important;
+                        max-height: none !important;
+                        inset: auto !important;
+                        z-index: auto !important;
+                    }
+                    .pedagogical-modal-card {
+                        position: static !important;
+                        display: block !important;
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        height: auto !important;
+                        max-height: none !important;
+                        overflow: visible !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        background: transparent !important;
+                        border: none !important;
+                        box-shadow: none !important;
+                        border-radius: 0 !important;
+                        transform: none !important;
+                        animation: none !important;
+                    }
+                    .pedagogical-modal-body {
+                        display: block !important;
+                        overflow: visible !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        background: transparent !important;
+                        height: auto !important;
+                        max-height: none !important;
                     }
                     #pedagogical-report-root {
-                        position: absolute !important;
-                        left: 0 !important;
-                        top: 0 !important;
+                        position: static !important;
+                        display: block !important;
                         width: 100% !important;
                         max-width: 100% !important;
                         margin: 0 !important;
@@ -99,9 +143,7 @@ export default function PedagogicalReportModal({ report, loading, onClose }: Ped
                         color: #0f172a !important;
                         box-shadow: none !important;
                         border: none !important;
-                    }
-                    .no-print {
-                        display: none !important;
+                        border-radius: 0 !important;
                     }
                     .page-break-avoid {
                         break-inside: avoid !important;
@@ -110,7 +152,7 @@ export default function PedagogicalReportModal({ report, loading, onClose }: Ped
                 }
             ` }} />
 
-            <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto animate-scale-in">
+            <div className="pedagogical-modal-card relative w-full max-w-4xl bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden my-auto animate-scale-in">
                 {/* Header Action Bar (On Screen Only) */}
                 <div className="no-print flex items-center justify-between px-6 py-4 bg-slate-800/90 border-b border-slate-700">
                     <div className="flex items-center gap-3">
@@ -123,6 +165,9 @@ export default function PedagogicalReportModal({ report, loading, onClose }: Ped
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
+                        <span className="text-[11px] text-slate-400 hidden md:inline">
+                            💡 Dica: No diálogo de impressão, desmarque "Cabeçalhos e rodapés" para um PDF perfeito
+                        </span>
                         <button
                             onClick={handlePrint}
                             disabled={loading || !report}
@@ -141,7 +186,7 @@ export default function PedagogicalReportModal({ report, loading, onClose }: Ped
                 </div>
 
                 {/* Printable Document Container */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-950/50">
+                <div className="pedagogical-modal-body flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-950/50">
                     {loading ? (
                         <div className="py-24 text-center">
                             <div className="w-12 h-12 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
